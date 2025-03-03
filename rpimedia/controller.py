@@ -74,7 +74,7 @@ class Controller:
         return await self._run_command(
             [
                 "mpv",
-                "--ytdl-format=94,18",  # TODO: Use best format using https://github.com/ytdl-org/youtube-dl/blob/master/README.md#format-selection
+                "--ytdl-format=94,18,397",  # TODO: Use best format using https://github.com/ytdl-org/youtube-dl/blob/master/README.md#format-selection
                 f"https://www.youtube.com/watch?v={video_id}",
             ]
         )
@@ -88,7 +88,7 @@ class Controller:
     async def volume_up(self, volume_step):
         print(f"Volume up by {volume_step}")
         return await self._run_command_async(
-            ["amixer", "--quiet", "-M", "set", "Master", f"{volume_step}+"]
+            ["amixer", "-M", "set", "Master", f"{volume_step}+"]
         )
 
     async def volume_down(self, volume_step):
