@@ -1,3 +1,4 @@
+import random
 import asyncio
 import subprocess
 from . import event_bus as eb
@@ -33,13 +34,31 @@ class Controller:
                     case "2":
                         print("Pause")
                     case "c":
+                        # TV Aparecida
                         await self.play_youtube("ha-Ag0lQmN0")
                     case "f":
-                        await self.play_youtube("f_XTeWMoKxk")
+                        # Rolê Família
+                        videos = [
+                            # FAIL "2ENqKaIa78I",  # Alter do Chão
+                            # FAIL "R2V07E58Gwg",   # Jalapão
+                            # FAIL "yRhE1gvBtMw",  # Floripa
+                            # FAIL "LojAwU1HCV8",  # 10 coisas no Brasi
+                            # FAIL "8OxBxgmIh6o",  # Serra da Capivara
+                            # FAIL "qm_6g0sjycI",  # São Luís
+                        ]
+                        # video = random.sample(videos, 1)[0]
+                        print("Rolê Família")
+                        # await self.play_youtube(video)
                     case "b":
-                        await self.play_video("data/ze-freitas.mp4")
+                        videos = [
+                            "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
+                            "90J-t4S_K0E",  # Erasmo Carlos
+                            "_mDTJzZ9900",  # Francisco José - Olhos Castanhos
+                        ]
+                        video = random.sample(videos, 1)[0]
+                        await self.play_youtube(video)
                     case "e":
-                        await self.play_video("data/toggle.mp4")
+                        print("11")
                     case "a":
                         print("20")
                     case "d":
@@ -55,7 +74,6 @@ class Controller:
         return await self._run_command(
             [
                 "mpv",
-                "--really-quiet",
                 "--ytdl-format=94,18",  # TODO: Use best format using https://github.com/ytdl-org/youtube-dl/blob/master/README.md#format-selection
                 f"https://www.youtube.com/watch?v={video_id}",
             ]
@@ -64,7 +82,7 @@ class Controller:
     async def play_video(self, video_path):
         print(f"Playing video {video_path}")
         return await self._run_command(
-            ["cvlc", "--quiet", "--no-keyboard-events", "--loop", video_path]
+            ["cvlc", "--no-keyboard-events", "--loop", "--avcodec-hw=none", video_path]
         )
 
     async def volume_up(self, volume_step):
@@ -92,6 +110,7 @@ class Controller:
                 pass
             finally:
                 self._current_process = None
+                self._current_process_command = None
 
         self._current_process = await self._run_command_async(command)
         if self._current_process:
