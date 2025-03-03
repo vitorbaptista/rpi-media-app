@@ -1,0 +1,16 @@
+[Unit]
+Description=RPi Media Application
+After=network.target
+
+[Service]
+Type=simple
+User=vitor
+WorkingDirectory=/home/vitor/Projetos/rpi-media/
+ExecStart=/home/vitor/.local/bin/uv run rpimedia
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
