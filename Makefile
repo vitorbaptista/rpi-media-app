@@ -1,4 +1,4 @@
-.PHONY: install test deploy setup_service
+.PHONY: install test deploy setup_service tail_logs
 
 install:
 	uv sync
@@ -17,3 +17,6 @@ setup_service:
 	systemctl enable rpimedia.service
 	systemctl start rpimedia.service
 	systemctl status rpimedia.service
+
+tail_logs:
+	journalctl -u rpimedia.service -f
