@@ -1,5 +1,5 @@
 import asyncio
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Any
 
 
 class EventBus:
@@ -11,9 +11,13 @@ class EventBus:
         await self._queue.put((event_kind, event_data))
 
     async def get_event(
-        self, timeout: Optional[float] = None
-    ) -> Optional[Tuple[str, Dict]]:
-        """Get the next event from the bus."""
+        self, timeout: float | None = None
+    ) -> Tuple[str, Dict[str, Any]] | None:
+        """Get the next event from the bus.
+
+        Returns:
+            A tuple of (event_kind, event_data) or None if timeout occurs.
+        """
         try:
             if timeout is not None:
                 return await asyncio.wait_for(self._queue.get(), timeout=timeout)

@@ -4,15 +4,16 @@ from . import event_bus as eb
 
 
 class Controller:
-    def __init__(self, event_bus: eb.EventBus = None):
+    def __init__(self, event_bus: eb.EventBus | None = None):
         self.event_bus = event_bus or eb.EventBus()
         self._current_process = None
         self._current_process_command = None
 
     async def run(self):
         while True:
-            event_kind, event_data = await self.event_bus.get_event()
-            if event_kind:
+            event = await self.event_bus.get_event()
+            if event is not None:
+                event_kind, event_data = event
                 await self.handle_event(event_kind, event_data)
 
             # Add a small delay to prevent CPU spinning

@@ -1,8 +1,11 @@
+.PHONY: install test deploy
+
 install:
 	uv sync
 	uv run pre-commit install
 
 test:
+	uv run pyright
 	uv run pre-commit run --all-files
 
 deploy:

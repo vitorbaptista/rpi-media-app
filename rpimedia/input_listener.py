@@ -6,7 +6,7 @@ from . import event_bus as eb
 
 
 class InputListener:
-    def __init__(self, event_bus: eb.EventBus = None):
+    def __init__(self, event_bus: eb.EventBus | None = None):
         """Initialize the InputListener with an event bus."""
         self.event_bus = event_bus or eb.EventBus()
         self._shutdown_event = threading.Event()
@@ -44,6 +44,9 @@ class InputListener:
     async def process_key(self, key):
         """Process the key and create an event in the event bus."""
         # Create an event with the key pressed
+        if self._loop is None:
+            return
+
         event_data = {"key": key, "timestamp": self._loop.time()}
 
         await self.event_bus.add_event("keyboard_input", event_data)
@@ -59,6 +62,9 @@ class InputListener:
 
     def handle_key_event(self, e):
         """Handle keyboard events and convert them to system events."""
+        if self._loop is None:
+            return
+
         key_char = e.name
 
         # Handle special cases

@@ -29,4 +29,5 @@ packages = ["rpimedia"]
 [dependency-groups]
 dev = [
     "pre-commit>=4.1.0",
+    "pyright[nodejs]>=1.1.396",
 ]
