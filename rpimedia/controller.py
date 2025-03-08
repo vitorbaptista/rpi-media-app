@@ -1,8 +1,12 @@
+import logging
 import random
 import asyncio
 import subprocess
 import functools
 from . import event_bus as eb
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 def _debounce(wait_time):
@@ -52,13 +56,13 @@ class Controller:
             await asyncio.sleep(0.01)
 
     async def handle_event(self, event_kind, event_data):
-        print(f"Handling event: {event_kind} {event_data}")
+        logger.debug(f"Handling event: {event_kind} {event_data}")
 
         match event_kind:
             case "keyboard_input":
                 await self._handle_key_press(event_data["key"])
             case _:
-                print(f"Unknown event: {event_kind} {event_data}")
+                logger.debug(f"Unknown event: {event_kind} {event_data}")
 
     @_debounce(wait_time=2)
     async def _handle_key_press(self, key):
@@ -69,7 +73,7 @@ class Controller:
         binding = self._config["remote"]["bindings"].get(key)
         key_config = self._config["remote"]["keys"].get(binding)
         if not binding or not key_config:
-            print(f"No configuration for key: {key}")
+            logger.debug(f"No configuration for key: {key}")
             return
 
         method = key_config["method"]
@@ -101,11 +105,11 @@ class Controller:
             case "volume_down":
                 return await self.volume_down(params)
             case _:
-                print(f"Unknown method: {method}")
+                logger.debug(f"Unknown method: {method}")
 
     async def play_youtube(self, video_id):
         # TODO: Adicionar uma imagem enquanto ele não carrega, pois demora alguns segundos
-        print(f"Playing youtube video {video_id}")
+        logger.debug(f"Playing youtube video {video_id}")
         return await self._run_command_async(
             [
                 "catt",
@@ -115,11 +119,11 @@ class Controller:
         )
 
     async def clear_queue_youtube(self):
-        print("Clearing youtube queue")
+        logger.debug("Clearing youtube queue")
         return await self._run_command_async(["catt", "clear"])
 
     async def enqueue_youtube(self, video_id):
-        print(f"Enqueuing youtube video {video_id}")
+        logger.debug(f"Enqueuing youtube video {video_id}")
         return await self._run_command_async(
             ["catt", "add", f"https://www.youtube.com/watch?v={video_id}"]
         )
@@ -128,23 +132,23 @@ class Controller:
         return await self._run_command_async(["catt", "skip"])
 
     async def play_video(self, video_path):
-        print(f"Playing video {video_path}")
+        logger.debug(f"Playing video {video_path}")
         return await self._run_command(
             ["cvlc", "--no-keyboard-events", "--loop", "--avcodec-hw=none", video_path]
         )
 
     async def volume_up(self, volume_step):
-        print(f"Volume up by {volume_step}")
+        logger.debug(f"Volume up by {volume_step}")
         return await self._run_command_async(["catt", "volumeup", f"{volume_step}"])
 
     async def volume_down(self, volume_step):
-        print(f"Volume down by {volume_step}")
+        logger.debug(f"Volume down by {volume_step}")
         return await self._run_command_async(["catt", "volumedown", f"{volume_step}"])
 
     async def _run_command(self, command):
         if self._current_process_command == command:
             # Ignore if the command is the same as the current one
-            print("Ignoring repeated command")
+            logger.debug("Ignoring repeated command")
             return
 
         if self._current_process:
@@ -164,4 +168,4 @@ class Controller:
         try:
             return await asyncio.create_subprocess_exec(*command)
         except (subprocess.SubprocessError, FileNotFoundError) as e:
-            print(f"Failed to run command: {e}")
+            logger.debug(f"Failed to run command: {e}")
