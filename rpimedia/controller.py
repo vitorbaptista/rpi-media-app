@@ -38,6 +38,8 @@ def _debounce(wait_time):
 
 
 class Controller:
+    MAX_ENQUEUED_VIDEOS = 5
+
     def __init__(self, config, event_bus: eb.EventBus | None = None):
         self.event_bus = event_bus or eb.EventBus()
         self._current_process = None
@@ -93,8 +95,9 @@ class Controller:
                     await self.play_youtube(first_video)
 
                 # Enqueue the remaining videos if there are any
-                for video_id in shuffled_videos[1:]:
+                for video_id in shuffled_videos[1 : self.MAX_ENQUEUED_VIDEOS]:
                     await self.enqueue_youtube(video_id)
+                    await asyncio.sleep(2)
 
                 return
             case "video":
@@ -129,6 +132,7 @@ class Controller:
         )
 
     async def skip_video(self):
+        logger.debug("Skipping video")
         return await self._run_command_async(["catt", "skip"])
 
     async def play_video(self, video_path):
