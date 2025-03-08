@@ -11,11 +11,11 @@ d = "b6"
 
 [remote.keys.volume_up]
 method = "volume_up"
-params = "20%"
+params = "20"
 
 [remote.keys.volume_down]
 method = "volume_down"
-params = "20%"
+params = "20"
 
 [remote.keys.b1]
 method = "youtube"
@@ -39,5 +39,6 @@ method = "youtube"
 params = [
     "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
     "90J-t4S_K0E",  # Erasmo Carlos
+    "YdMn8xzCOS0",  # Gilberto Gil
     "_mDTJzZ9900"   # Francisco José - Olhos Castanhos
 ]
