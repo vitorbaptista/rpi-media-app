@@ -11,11 +11,11 @@ d = "b6"
 
 [remote.keys.volume_up]
 method = "volume_up"
-params = "20"
+params = "50"
 
 [remote.keys.volume_down]
 method = "volume_down"
-params = "20"
+params = "50"
 
 [remote.keys.b1]
 method = "youtube"
