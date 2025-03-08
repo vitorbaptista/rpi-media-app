@@ -76,19 +76,20 @@ class Controller:
         params = key_config["params"]
         match method:
             case "youtube":
+                # Randomly shuffle the params list
+                shuffled_videos = list(params)
+                random.shuffle(shuffled_videos)
+
                 if is_repeated_key:
                     return await self.skip_video()
+                else:
+                    await self.clear_queue_youtube()
 
-                # Randomly shuffle the params list
-                shuffled_params = list(params)
-                random.shuffle(shuffled_params)
-
-                # Play the first video
-                first_video = shuffled_params[0]
-                await self.play_youtube(first_video)
+                    first_video = shuffled_videos[0]
+                    await self.play_youtube(first_video)
 
                 # Enqueue the remaining videos if there are any
-                for video_id in shuffled_params[1:]:
+                for video_id in shuffled_videos[1:]:
                     await self.enqueue_youtube(video_id)
 
                 return
@@ -105,7 +106,6 @@ class Controller:
     async def play_youtube(self, video_id):
         # TODO: Adicionar uma imagem enquanto ele não carrega, pois demora alguns segundos
         print(f"Playing youtube video {video_id}")
-        await self._run_command_async(["catt", "clear"])
         return await self._run_command_async(
             [
                 "catt",
@@ -113,6 +113,10 @@ class Controller:
                 f"https://www.youtube.com/watch?v={video_id}",
             ]
         )
+
+    async def clear_queue_youtube(self):
+        print("Clearing youtube queue")
+        return await self._run_command_async(["catt", "clear"])
 
     async def enqueue_youtube(self, video_id):
         print(f"Enqueuing youtube video {video_id}")
