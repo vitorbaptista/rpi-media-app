@@ -1,11 +1,21 @@
 # Write a CLI using Click to configure the media controller
 
 import asyncio
+import pathlib
+import tomllib
 import click
 
 from . import controller
 from . import event_bus as eb
 from . import input_listener
+
+
+CONFIG_PATH = pathlib.Path(__file__).parent.parent / "config.toml"
+
+
+def _load_config():
+    with open(CONFIG_PATH, "rb") as f:
+        return tomllib.load(f)
 
 
 @click.command()
@@ -15,7 +25,8 @@ def main():
     async def run_all():
         # Create EventBus inside the async context to ensure it uses the right event loop
         event_bus = eb.EventBus()
-        ctrl = controller.Controller(event_bus=event_bus)
+        config = _load_config()
+        ctrl = controller.Controller(config=config, event_bus=event_bus)
         listener = input_listener.InputListener(event_bus=event_bus)
 
         # Create tasks for the controller and keyboard input handler

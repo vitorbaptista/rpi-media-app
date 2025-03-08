@@ -5,10 +5,11 @@ from . import event_bus as eb
 
 
 class Controller:
-    def __init__(self, event_bus: eb.EventBus | None = None):
+    def __init__(self, config, event_bus: eb.EventBus | None = None):
         self.event_bus = event_bus or eb.EventBus()
         self._current_process = None
         self._current_process_command = None
+        self._config = config
 
     async def run(self):
         while True:
@@ -21,52 +22,37 @@ class Controller:
             await asyncio.sleep(0.01)
 
     async def handle_event(self, event_kind, event_data):
-        volume_step = "20%"
+        print(f"Handling event: {event_kind} {event_data}")
 
         match event_kind:
             case "keyboard_input":
-                key = event_data["key"]
-                match key:
-                    case "3":
-                        await self.volume_up(volume_step)
-                    case "1":
-                        await self.volume_down(volume_step)
-                    case "2":
-                        print("Pause")
-                    case "c":
-                        # TV Aparecida
-                        await self.play_youtube("ha-Ag0lQmN0")
-                    case "f":
-                        # Rolê Família
-                        videos = [
-                            # FAIL "2ENqKaIa78I",  # Alter do Chão
-                            # FAIL "R2V07E58Gwg",   # Jalapão
-                            # FAIL "yRhE1gvBtMw",  # Floripa
-                            # FAIL "LojAwU1HCV8",  # 10 coisas no Brasi
-                            # FAIL "8OxBxgmIh6o",  # Serra da Capivara
-                            # FAIL "qm_6g0sjycI",  # São Luís
-                        ]
-                        # video = random.sample(videos, 1)[0]
-                        print("Rolê Família")
-                        # await self.play_youtube(video)
-                    case "b":
-                        videos = [
-                            "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
-                            "90J-t4S_K0E",  # Erasmo Carlos
-                            "_mDTJzZ9900",  # Francisco José - Olhos Castanhos
-                        ]
-                        video = random.sample(videos, 1)[0]
-                        await self.play_youtube(video)
-                    case "e":
-                        print("11")
-                    case "a":
-                        print("20")
-                    case "d":
-                        print("21")
-                    case _:
-                        print(f"Keyboard input: {event_data['key']}")
+                await self._handle_key_press(event_data["key"])
             case _:
                 print(f"Unknown event: {event_kind} {event_data}")
+
+    async def _handle_key_press(self, key):
+        """Handle a key press using the configuration"""
+        binding = self._config["remote"]["bindings"].get(key)
+        key_config = self._config["remote"]["keys"].get(binding)
+        if not binding or not key_config:
+            print(f"No configuration for key: {key}")
+            return
+
+        method = key_config["method"]
+        params = key_config["params"]
+        match method:
+            case "youtube":
+                video_id = random.choice(params)
+                return await self.play_youtube(video_id)
+            case "video":
+                video = random.choice(params)
+                return await self.play_video(video)
+            case "volume_up":
+                return await self.volume_up(params)
+            case "volume_down":
+                return await self.volume_down(params)
+            case _:
+                print(f"Unknown method: {method}")
 
     async def play_youtube(self, video_id):
         # TODO: Adicionar uma imagem enquanto ele não carrega, pois demora alguns segundos
