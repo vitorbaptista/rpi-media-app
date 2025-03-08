@@ -26,19 +26,38 @@ params = [
 [remote.keys.b2]
 method = "youtube"
 params = [
-    "2ENqKaIa78I",  # Alter do Chão
-    "R2V07E58Gwg",  # Jalapão
-    "yRhE1gvBtMw",  # Floripa
-    "LojAwU1HCV8",  # 10 coisas no Brasil
-    "8OxBxgmIh6o",  # Serra da Capivara
-    "qm_6g0sjycI"   # São Luís
+    "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
+    "90J-t4S_K0E",  # Erasmo Carlos
+    "ujUaIXcQh9Y",  # Caetano Veloso
+    "YdMn8xzCOS0",  # Gilberto Gil
+    "_mDTJzZ9900"   # Francisco José - Olhos Castanhos
 ]
 
 [remote.keys.b3]
 method = "youtube"
 params = [
-    "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
-    "90J-t4S_K0E",  # Erasmo Carlos
-    "YdMn8xzCOS0",  # Gilberto Gil
-    "_mDTJzZ9900"   # Francisco José - Olhos Castanhos
+    "2ENqKaIa78I",  # Alter do Chão
+    "R2V07E58Gwg",  # Jalapão
+    "yRhE1gvBtMw",  # Floripa
+    "LojAwU1HCV8",  # 10 coisas no Brasil
+    "8OxBxgmIh6o",  # Serra da Capivara
+    "qm_6g0sjycI",  # São Luís
+    "eH3vK1Be3CM"   # RRuas em Fernando de Noronha
+]
+
+[remote.keys.b4]
+method = "youtube"
+params = [
+    "UP6vtSAuOFA",  # Maravilhas de Portugal
+    "tQ4wQQBjivA",  # Descubra Madeira - PT
+    "6LPIXiguKaQ",  # RRuas em Lisboa e Beja
+    "Sq0L09PfBuA",  # RRuas em Mostar
+    "fspUhP4a6bM",  # RRuas em Edimburgo
+    "zdExsFnqWI4",  # RRuas em Istambul
+    "e1oFGA5WiVc",  # RRuas em Roma
+    "esfa9wwsYwU",  # RRuas na Antártida
+    "oGuWwMszSFI",  # RRuas em Veneza
+    "T695eiB-kX4",  # RRuas no Templo de Isis Egito
+    "aq_be_TFeZM",  # RRuas em Jerusalém
+    "TsYYnL1WvRU"   # RRuas em Capadócia
 ]
