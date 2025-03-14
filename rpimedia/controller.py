@@ -66,7 +66,7 @@ class Controller:
             case _:
                 logger.debug(f"Unknown event: {event_kind} {event_data}")
 
-    @_debounce(wait_time=2)
+    @_debounce(wait_time=10)
     async def _handle_key_press(self, key):
         """Handle a key press using the configuration"""
         is_repeated_key = self._last_key_pressed == key
