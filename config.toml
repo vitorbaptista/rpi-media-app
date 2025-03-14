@@ -27,10 +27,15 @@ params = [
 method = "youtube"
 params = [
     "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
-    "90J-t4S_K0E",  # Erasmo Carlos
+    "OZJyo2c1vQU",  # Julio Iglesias
     "ujUaIXcQh9Y",  # Caetano Veloso
     "YdMn8xzCOS0",  # Gilberto Gil
-    "_mDTJzZ9900"   # Francisco José - Olhos Castanhos
+    "_mDTJzZ9900",  # Francisco José - Olhos Castanhos
+    "4KyO37n8Mr4",  # Francisco José - Nem às parede confesso
+    "nE8uwamKfdY",  # Francisco José - A noite de meu bem
+    "i7j0bw5TonI"   # Roupa Nova - 40 anos
+
+    #"90J-t4S_K0E",  # Erasmo Carlos
 ]
 
 [remote.keys.b3]
