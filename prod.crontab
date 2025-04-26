@@ -1,0 +1,4 @@
+# Needs to use /bin/bash to make it load our .bash_profile, which sets up the
+# $PATH required for uv
+
+*/3 * * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make ensure_video_is_playing")

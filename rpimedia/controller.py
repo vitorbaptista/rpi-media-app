@@ -107,6 +107,9 @@ class Controller:
                 return await self.volume_up(params)
             case "volume_down":
                 return await self.volume_down(params)
+            case "url":
+                url = random.choice(params)
+                return await self.play_url(url)
             case _:
                 logger.debug(f"Unknown method: {method}")
 
@@ -130,6 +133,10 @@ class Controller:
         return await self._run_command_async(
             ["catt", "add", f"https://www.youtube.com/watch?v={video_id}"]
         )
+
+    async def play_url(self, url):
+        logger.debug(f"Playing url {url}")
+        return await self._run_command_async(["catt", "cast", url])
 
     async def skip_video(self):
         logger.debug("Skipping video")
