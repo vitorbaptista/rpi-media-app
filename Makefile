@@ -1,4 +1,4 @@
-.PHONY: install test deploy setup_service setup_crontab tail_logs ensure_video_is_playing
+.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing
 
 install:
 	uv sync
@@ -11,11 +11,14 @@ test:
 deploy:
 	rsync -av --progress ./* rpi:/home/vitor/Projetos/rpi-media/
 
+setup: setup_crontab
+	sudo make setup_service
+
 setup_service:
 	cp rpimedia.service /etc/systemd/system/
 	systemctl daemon-reload
 	systemctl enable rpimedia.service
-	systemctl start rpimedia.service
+	systemctl restart rpimedia.service
 	systemctl status rpimedia.service
 
 setup_crontab:
