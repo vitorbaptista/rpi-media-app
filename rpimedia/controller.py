@@ -38,7 +38,7 @@ def _debounce(wait_time):
 
 
 class Controller:
-    MAX_ENQUEUED_VIDEOS = 5
+    MAX_ENQUEUED_VIDEOS = 3
 
     def __init__(self, config, event_bus: eb.EventBus | None = None):
         self.event_bus = event_bus or eb.EventBus()
