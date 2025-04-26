@@ -11,11 +11,11 @@ d = "b6"
 
 [remote.keys.volume_up]
 method = "volume_up"
-params = "50"
+params = "15"
 
 [remote.keys.volume_down]
 method = "volume_down"
-params = "50"
+params = "15"
 
 [remote.keys.b1]
 method = "url"
@@ -42,19 +42,17 @@ params = [
 method = "youtube"
 params = [
     "2ENqKaIa78I",  # Alter do Chão
-    "R2V07E58Gwg",  # Jalapão
-    "yRhE1gvBtMw",  # Floripa
     "LojAwU1HCV8",  # 10 coisas no Brasil
     "8OxBxgmIh6o",  # Serra da Capivara
-    "qm_6g0sjycI",  # São Luís
-    "eH3vK1Be3CM"   # RRuas em Fernando de Noronha
+    "F01ciDMSJtA",  # Fernando de Noronha
+    "Q_fhu4Ckh5c",  # Salto Angel
+    "eH3vK1Be3CM",  # RRuas em Fernando de Noronha
+    "uKwxuE_DulQ"  # Ceará
 ]
 
 [remote.keys.b4]
 method = "youtube"
 params = [
-    "UP6vtSAuOFA",  # Maravilhas de Portugal
-    "tQ4wQQBjivA",  # Descubra Madeira - PT
     "6LPIXiguKaQ",  # RRuas em Lisboa e Beja
     "Sq0L09PfBuA",  # RRuas em Mostar
     "fspUhP4a6bM",  # RRuas em Edimburgo
@@ -64,5 +62,7 @@ params = [
     "oGuWwMszSFI",  # RRuas em Veneza
     "T695eiB-kX4",  # RRuas no Templo de Isis Egito
     "aq_be_TFeZM",  # RRuas em Jerusalém
-    "TsYYnL1WvRU"   # RRuas em Capadócia
+    "TsYYnL1WvRU",  # RRuas em Capadócia
+    "D_AVORG9lZg",  # Rolê Família - Marrakesh
+    "-0LS4X9CPpo"   # Rolê Família - Saara
 ]
