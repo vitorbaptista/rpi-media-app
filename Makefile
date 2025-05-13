@@ -1,4 +1,4 @@
-.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing
+.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing play_sessao_da_tarde
 
 install:
 	uv sync
@@ -30,5 +30,12 @@ tail_logs:
 
 ensure_video_is_playing:
 	flock --nonblock /tmp/rpi_$@.pid \
-		uv run python chromecast_checker.py "https://cdn.jmvstream.com/w/LVW-9716/LVW9716_HbtQtezcaw/playlist.m3u8"https://www.youtube.com/watch?v=ha-Ag0lQmN0"; \
+		uv run python chromecast_checker.py "https://cdn.jmvstream.com/w/LVW-9716/LVW9716_HbtQtezcaw/playlist.m3u8"; \
 		rm -f /tmp/rpi_$@.pid
+
+play_sessao_da_tarde:
+	flock --nonblock /tmp/rpi_sessao_da_tarde_$@.pid \
+		uv run python play_sessao_da_tarde.py
+		rm -f /tmp/rpi_sessao_da_tarde_$@.pid
+	# Play TV Aparecida after the video finishes
+	make ensure_video_is_playing
