@@ -37,7 +37,7 @@ def main():
             return 1
 
         logger.info(f"Playing video: {video_path}")
-        subprocess.run(["catt", "cast", video_path], check=True)
+        subprocess.run(["catt", "cast", "--block", video_path], check=True)
         logger.info("Playback completed successfully")
 
         return 0
