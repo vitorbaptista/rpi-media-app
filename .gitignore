@@ -10,6 +10,7 @@ wheels/
 .venv
 
 data/
-!data/.gitignore
+!data/.gitkeep
+!data/sessao_da_tarde/.gitkeep
 
 .python-version
