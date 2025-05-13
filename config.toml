@@ -66,3 +66,9 @@ params = [
     "D_AVORG9lZg",  # Rolê Família - Marrakesh
     "-0LS4X9CPpo"   # Rolê Família - Saara
 ]
+
+[remote.keys.b5]
+method = "glob"
+params = [
+    "data/sessao_da_tarde/**/*.mp4"
+]

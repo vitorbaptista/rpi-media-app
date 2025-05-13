@@ -1,5 +1,7 @@
 import logging
 import random
+import glob
+import os
 import asyncio
 import subprocess
 import functools
@@ -7,6 +9,8 @@ from . import event_bus as eb
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
 
 
 def _debounce(wait_time):
@@ -110,6 +114,9 @@ class Controller:
             case "url":
                 url = random.choice(params)
                 return await self.play_url(url)
+            case "glob":
+                glob_path = random.choice(params)
+                return await self.play_glob(glob_path)
             case _:
                 logger.debug(f"Unknown method: {method}")
 
@@ -147,6 +154,17 @@ class Controller:
         return await self._run_command(
             ["cvlc", "--no-keyboard-events", "--loop", "--avcodec-hw=none", video_path]
         )
+
+    async def play_glob(self, glob_path):
+        logger.debug(f"Playing glob {glob_path}")
+        glob_path = os.path.join(BASE_DIR, glob_path)
+        video_paths = sorted(glob.glob(glob_path, recursive=True))
+        if not video_paths:
+            logger.error(f"No video found for glob {glob_path}")
+            return
+
+        video_path = random.choice(video_paths)
+        return await self._run_command_async(["catt", "cast", video_path])
 
     async def volume_up(self, volume_step):
         logger.debug(f"Volume up by {volume_step}")
