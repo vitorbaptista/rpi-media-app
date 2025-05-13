@@ -164,7 +164,7 @@ class Controller:
             return
 
         video_path = random.choice(video_paths)
-        return await self._run_command_async(["catt", "cast", video_path])
+        return await self._run_command_async(["catt", "cast", "--block", video_path])
 
     async def volume_up(self, volume_step):
         logger.debug(f"Volume up by {volume_step}")
