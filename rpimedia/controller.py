@@ -73,9 +73,6 @@ class Controller:
     @_debounce(wait_time=10)
     async def _handle_key_press(self, key):
         """Handle a key press using the configuration"""
-        is_repeated_key = self._last_key_pressed == key
-        self._last_key_pressed = key
-
         binding = self._config["remote"]["bindings"].get(key)
         key_config = self._config["remote"]["keys"].get(binding)
         if not binding or not key_config:
@@ -90,13 +87,10 @@ class Controller:
                 shuffled_videos = list(params)
                 random.shuffle(shuffled_videos)
 
-                if is_repeated_key:
-                    return await self.skip_video()
-                else:
-                    await self.clear_queue_youtube()
+                first_video = shuffled_videos[0]
+                await self.play_youtube(first_video)
 
-                    first_video = shuffled_videos[0]
-                    await self.play_youtube(first_video)
+                await self.clear_queue_youtube()
 
                 # Enqueue the remaining videos if there are any
                 for video_id in shuffled_videos[1 : self.MAX_ENQUEUED_VIDEOS]:
