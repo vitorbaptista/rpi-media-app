@@ -18,9 +18,9 @@ method = "volume_down"
 params = "15"
 
 [remote.keys.b1]
-method = "url"
+method = "youtube"
 params = [
-  "https://cdn.jmvstream.com/w/LVW-9716/LVW9716_HbtQtezcaw/playlist.m3u8"  # TV Aparecida
+  "4CAmwaFJo6k"  # TV Aparecida
 ]
 
 [remote.keys.b2]
