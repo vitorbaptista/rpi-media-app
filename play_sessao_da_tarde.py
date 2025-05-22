@@ -31,7 +31,7 @@ def _get_video_path():
 
 
 def _cast_with_retry_if_finished_too_quickly(
-    video_path, min_execution_duration=60, max_attempts=5
+    video_path, min_execution_duration=180, max_attempts=5
 ):
     attempts = 0
     while attempts < max_attempts:
