@@ -90,8 +90,6 @@ class Controller:
                 first_video = shuffled_videos[0]
                 await self.play_youtube(first_video)
 
-                await self.clear_queue_youtube()
-
                 # Enqueue the remaining videos if there are any
                 for video_id in shuffled_videos[1 : self.MAX_ENQUEUED_VIDEOS]:
                     await self.enqueue_youtube(video_id)
@@ -124,10 +122,6 @@ class Controller:
                 f"https://www.youtube.com/watch?v={video_id}",
             ]
         )
-
-    async def clear_queue_youtube(self):
-        logger.debug("Clearing youtube queue")
-        return await self._run_command_async(["catt", "clear"])
 
     async def enqueue_youtube(self, video_id):
         logger.debug(f"Enqueuing youtube video {video_id}")
