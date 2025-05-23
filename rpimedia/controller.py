@@ -51,6 +51,10 @@ class Controller:
         self._config = config
         self._last_key_pressed = None
 
+        # For some reason, the random.shuffle() is always picking the same
+        # video. I'm trying to explicitly set a random seed now.
+        random.seed()
+
     async def run(self):
         while True:
             event = await self.event_bus.get_event()
