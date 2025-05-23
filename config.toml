@@ -70,5 +70,5 @@ params = [
 [remote.keys.b5]
 method = "glob"
 params = [
-    "data/sessao_da_tarde/**/*.mp4"
+    "data/sessao_da_tarde/Chosen/**/*.mp4"
 ]
