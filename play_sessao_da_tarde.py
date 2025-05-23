@@ -21,7 +21,7 @@ def _get_video_path():
     if not video_paths:
         return
 
-    video_index = datetime.datetime.now().day
+    video_index = datetime.datetime.now().timetuple().tm_yday  # Day of the year
     if datetime.datetime.now().hour > 12:
         video_index += 1
 
