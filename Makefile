@@ -30,7 +30,7 @@ tail_logs:
 
 ensure_video_is_playing:
 	flock --nonblock /tmp/rpi_$@.pid \
-		uv run python chromecast_checker.py "https://cdn.jmvstream.com/w/LVW-9716/LVW9716_HbtQtezcaw/playlist.m3u8"; \
+		uv run python chromecast_checker.py "https://www.youtube.com/watch?v=4CAmwaFJo6k"; \
 		rm -f /tmp/rpi_$@.pid
 
 play_sessao_da_tarde:
