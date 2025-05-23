@@ -156,7 +156,9 @@ class Controller:
             return
 
         video_path = random.choice(video_paths)
-        return await self._run_command_async(["catt", "cast", "--block", video_path])
+        return await self._run_command_async(
+            ["catt", "cast", "--block", video_path], min_execution_time=120
+        )
 
     async def volume_up(self, volume_step):
         logger.debug(f"Volume up by {volume_step}")
@@ -185,8 +187,31 @@ class Controller:
         if self._current_process:
             self._current_process_command = command
 
-    async def _run_command_async(self, command):
+    async def _run_command_async(self, command, min_execution_time=None, attempts=0):
+        max_attempts = 3
         try:
-            return await asyncio.create_subprocess_exec(*command)
+            attempts += 1
+            if attempts > max_attempts:
+                logger.error(
+                    f"Process finished too quickly after {max_attempts} attempts. Giving up."
+                )
+                return
+
+            process = await asyncio.create_subprocess_exec(*command)
+
+            if not min_execution_time:
+                return process
+
+            # Wait for process with timeout
+            await asyncio.wait_for(process.wait(), timeout=min_execution_time)
+
+            logger.info(
+                f"Process finished too quickly running again (attempt {attempts}/{max_attempts})"
+            )
+            return await self._run_command_async(command, attempts)
+
+        except asyncio.TimeoutError:
+            # Process is still running after the timeout. This is fine.
+            pass
         except (subprocess.SubprocessError, FileNotFoundError) as e:
             logger.debug(f"Failed to run command: {e}")
