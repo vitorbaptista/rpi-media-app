@@ -12,5 +12,7 @@ wheels/
 data/
 !data/.gitkeep
 !data/sessao_da_tarde/.gitkeep
+!data/sessao_da_tarde/chosen/.gitkeep
+!data/sessao_da_tarde/filmes/.gitkeep
 
 .python-version
