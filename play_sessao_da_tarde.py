@@ -13,7 +13,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-VIDEO_DIR = os.path.join(os.path.dirname(__file__), "data", "sessao_da_tarde")
+VIDEO_DIR = os.path.join(os.path.dirname(__file__), "data", "sessao_da_tarde", "chosen")
 
 
 def _get_video_path():
