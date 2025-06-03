@@ -5,6 +5,7 @@ import logging
 import argparse
 import subprocess
 import time
+from typing import Optional, Tuple, Any, Dict
 import catt.api
 
 # Set up logging
@@ -14,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_device():
+def get_device() -> Optional[catt.api.CattDevice]:
     """
     Discover and return the first available Chromecast device.
     Returns the device or None if no device is found or an error occurs.
@@ -28,7 +29,9 @@ def get_device():
     return device
 
 
-def check_cast_status(num_retries=2, sleep_seconds=3):
+def check_cast_status(
+    num_retries: int = 2, sleep_seconds: int = 3
+) -> Tuple[Optional[catt.api.CattDevice], bool]:
     """
     Check Chromecast status with retries.
     Returns (device, is_playing) tuple where is_playing is True only if
@@ -42,7 +45,7 @@ def check_cast_status(num_retries=2, sleep_seconds=3):
     )
 
     device = get_device()
-    if not device:
+    if not device or not device.controller:
         return None, False
 
     all_playing = True
@@ -51,7 +54,7 @@ def check_cast_status(num_retries=2, sleep_seconds=3):
             time.sleep(sleep_seconds)
 
         device.controller.prep_info()
-        media_info = device.controller.media_info
+        media_info: Dict[str, Any] = device.controller.media_info
         is_playing = bool(media_info.get("title"))
 
         if not is_playing:
@@ -67,7 +70,7 @@ def check_cast_status(num_retries=2, sleep_seconds=3):
     return device, all_playing
 
 
-def main():
+def main() -> int:
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Check Chromecast device and play URL if nothing is playing."
