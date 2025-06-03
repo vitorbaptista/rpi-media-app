@@ -65,7 +65,7 @@ class Controller:
             # Add a small delay to prevent CPU spinning
             await asyncio.sleep(0.01)
 
-    @_debounce(wait_time=10)
+    @_debounce(wait_time=20)
     async def handle_event(self, event_kind, event_data):
         logger.debug(f"Handling event: {event_kind} {event_data}")
 
