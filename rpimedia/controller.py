@@ -208,7 +208,7 @@ class Controller:
             logger.info(
                 f"Process finished too quickly running again (attempt {attempts}/{max_attempts})"
             )
-            return await self._run_command_async(command, attempts)
+            return self._run_command_async(command, attempts)
 
         except asyncio.TimeoutError:
             # Process is still running after the timeout. This is fine.
