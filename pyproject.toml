@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-rpimedia = "rpimedia.cli:main"
+rpimedia = "rpimedia.cli:cli"
 
 [tool.uv.sources]
 keyboard = { git = "https://github.com/boppreh/keyboard.git" }

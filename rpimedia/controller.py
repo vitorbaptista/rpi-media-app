@@ -80,12 +80,12 @@ class Controller:
             case "keyboard_input":
                 return await self._handle_key_press(event_data["key"])
             case _:
-                logger.debug(f"Unknown event: {event_kind} {event_data}")
-                return None
+                method = event_kind
+                params = event_data.get("params", [])
+                return await self._handle_method_call(method, params)
 
     @_debounce(wait_time=20)
     async def _handle_key_press(self, key: str) -> Optional[asyncio.subprocess.Process]:
-        """Handle a key press using the configuration"""
         binding = self._config["remote"]["bindings"].get(key)
         key_config = self._config["remote"]["keys"].get(binding)
         if not binding or not key_config:
@@ -94,17 +94,22 @@ class Controller:
 
         method = key_config["method"]
         params = key_config["params"]
+
+        # We shuffle the params to avoid always playing the same video
+        random.shuffle(params)
+
+        return await self._handle_method_call(method, params)
+
+    async def _handle_method_call(
+        self, method: str, params: List[str]
+    ) -> Optional[asyncio.subprocess.Process]:
         match method:
             case "youtube":
-                # Randomly shuffle the params list
-                shuffled_videos: List[str] = list(params)
-                random.shuffle(shuffled_videos)
-
-                first_video = shuffled_videos[0]
+                first_video = params[0]
                 result = await self.play_youtube(first_video)
 
                 # Enqueue the remaining videos if there are any
-                for video_id in shuffled_videos[1 : self.MAX_ENQUEUED_VIDEOS]:
+                for video_id in params[1 : self.MAX_ENQUEUED_VIDEOS]:
                     await self.enqueue_youtube(video_id)
                     await asyncio.sleep(2)
 
@@ -113,14 +118,16 @@ class Controller:
                 video = random.choice(params)
                 return await self.play_video(video)
             case "volume_up":
-                return await self.volume_up(params)
+                assert len(params) == 1, "Volume up must have exactly one parameter"
+                return await self.volume_up(int(params[0]))
             case "volume_down":
-                return await self.volume_down(params)
+                assert len(params) == 1, "Volume down must have exactly one parameter"
+                return await self.volume_down(int(params[0]))
             case "url":
-                url = random.choice(params)
+                url = params[0]
                 return await self.play_url(url)
             case "glob":
-                glob_path = random.choice(params)
+                glob_path = params[0]
                 return await self.play_glob(glob_path)
             case _:
                 logger.debug(f"Unknown method: {method}")
