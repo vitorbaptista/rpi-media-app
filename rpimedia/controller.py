@@ -71,7 +71,6 @@ class Controller:
             # Add a small delay to prevent CPU spinning
             await asyncio.sleep(0.01)
 
-    @_debounce(wait_time=20)
     async def handle_event(
         self, event_kind: str, event_data: Dict[str, Any]
     ) -> Optional[asyncio.subprocess.Process]:
@@ -84,6 +83,7 @@ class Controller:
                 logger.debug(f"Unknown event: {event_kind} {event_data}")
                 return None
 
+    @_debounce(wait_time=20)
     async def _handle_key_press(self, key: str) -> Optional[asyncio.subprocess.Process]:
         """Handle a key press using the configuration"""
         binding = self._config["remote"]["bindings"].get(key)
