@@ -6,7 +6,6 @@ import logging
 import glob
 import subprocess
 import datetime
-from rpimedia.helpers import retry_if_finished_too_quickly
 
 # Set up logging
 logging.basicConfig(
@@ -30,10 +29,9 @@ def _get_video_path():
     return video_path
 
 
-@retry_if_finished_too_quickly(min_execution_duration=180, max_attempts=5)
 def _play_video(video_path):
     logger.info(f"Playing video: {video_path}")
-    return subprocess.run(["catt", "cast", "--block", video_path], check=True)
+    return subprocess.run(["rpimedia", "send_event", "video", video_path], check=True)
 
 
 # TODO: Only play if we're playing TV Aparecida

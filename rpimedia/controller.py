@@ -52,10 +52,7 @@ class Controller:
         self, config: Dict[str, Any], event_bus: Optional[eb.EventBus] = None
     ) -> None:
         self.event_bus: eb.EventBus = event_bus or eb.EventBus()
-        self._current_process: Optional[asyncio.subprocess.Process] = None
-        self._current_process_command: Optional[List[str]] = None
         self._config: Dict[str, Any] = config
-        self._last_key_pressed: Optional[str] = None
 
         # For some reason, the random.shuffle() is always picking the same
         # video. I'm trying to explicitly set a random seed now.
@@ -162,8 +159,8 @@ class Controller:
 
     async def play_video(self, video_path: str) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing video {video_path}")
-        return await self._run_command(
-            ["cvlc", "--no-keyboard-events", "--loop", "--avcodec-hw=none", video_path]
+        return await self._run_command_async(
+            ["catt", "cast", "--block", video_path], min_execution_time=120
         )
 
     async def play_glob(self, glob_path: str) -> Optional[asyncio.subprocess.Process]:
@@ -175,9 +172,7 @@ class Controller:
             return None
 
         video_path = random.choice(video_paths)
-        return await self._run_command_async(
-            ["catt", "cast", "--block", video_path], min_execution_time=120
-        )
+        return await self.play_video(video_path)
 
     async def volume_up(self, volume_step: int) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Volume up by {volume_step}")
@@ -189,39 +184,17 @@ class Controller:
         logger.debug(f"Volume down by {volume_step}")
         return await self._run_command_async(["catt", "volumedown", f"{volume_step}"])
 
-    async def _run_command(
-        self, command: List[str]
-    ) -> Optional[asyncio.subprocess.Process]:
-        if self._current_process_command == command:
-            # Ignore if the command is the same as the current one
-            logger.debug("Ignoring repeated command")
-            return None
-
-        if self._current_process:
-            try:
-                self._current_process.terminate()
-            except Exception:
-                pass
-            finally:
-                self._current_process = None
-                self._current_process_command = None
-
-        self._current_process = await self._run_command_async(command)
-        if self._current_process:
-            self._current_process_command = command
-        return self._current_process
-
     async def _run_command_async(
         self,
         command: List[str],
         min_execution_time: Optional[float] = None,
-        attempts: int = 0,
+        _attempts: int = 0,
     ) -> Optional[asyncio.subprocess.Process]:
         max_attempts = 3
         process: Optional[asyncio.subprocess.Process] = None
         try:
-            attempts += 1
-            if attempts > max_attempts:
+            _attempts += 1
+            if _attempts > max_attempts:
                 logger.error(
                     f"Process finished too quickly after {max_attempts} attempts. Giving up."
                 )
@@ -236,9 +209,9 @@ class Controller:
             await asyncio.wait_for(process.wait(), timeout=min_execution_time)
 
             logger.info(
-                f"Process finished too quickly running again (attempt {attempts}/{max_attempts})"
+                f"Process finished too quickly running again (attempt {_attempts}/{max_attempts})"
             )
-            return await self._run_command_async(command, min_execution_time, attempts)
+            return await self._run_command_async(command, min_execution_time, _attempts)
 
         except asyncio.TimeoutError:
             # Process is still running after the timeout. This is fine.
