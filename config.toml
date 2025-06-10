@@ -26,28 +26,48 @@ params = [
 [remote.keys.b2]
 method = "youtube"
 params = [
+    "zlin28kYqVI",  # Flávio José - São João CG
+    "AOrbv6bVqU4",  # Santanna - Cantador
+
     "En_Qi8vcpsQ",  # Roberto Carlos Especial 2024
-    "OZJyo2c1vQU",  # Julio Iglesias
+    #"OZJyo2c1vQU",  # Julio Iglesias (1988)
+    "e5iJmsi1ULg",  # Julio Iglesias
     "ujUaIXcQh9Y",  # Caetano Veloso
     "YdMn8xzCOS0",  # Gilberto Gil
-    "_mDTJzZ9900",  # Francisco José - Olhos Castanhos
-    "4KyO37n8Mr4",  # Francisco José - Nem às parede confesso
-    "nE8uwamKfdY",  # Francisco José - A noite de meu bem
-    "i7j0bw5TonI"   # Roupa Nova - 40 anos
+    "f8saSAHn8nc"   # Zé Ramalho
 
+    #"_mDTJzZ9900",  # Francisco José - Olhos Castanhos
+    #"4KyO37n8Mr4",  # Francisco José - Nem às parede confesso
+    #"nE8uwamKfdY",  # Francisco José - A noite de meu bem
+    #"i7j0bw5TonI"   # Roupa Nova - 40 anos
     #"90J-t4S_K0E",  # Erasmo Carlos
 ]
 
 [remote.keys.b3]
 method = "youtube"
 params = [
-    "2ENqKaIa78I",  # Alter do Chão
-    "LojAwU1HCV8",  # 10 coisas no Brasil
-    "8OxBxgmIh6o",  # Serra da Capivara
-    "F01ciDMSJtA",  # Fernando de Noronha
-    "Q_fhu4Ckh5c",  # Salto Angel
-    "eH3vK1Be3CM",  # RRuas em Fernando de Noronha
-    "uKwxuE_DulQ"  # Ceará
+    #"2ENqKaIa78I",  # Alter do Chão
+    #"LojAwU1HCV8",  # 10 coisas no Brasil
+    #"8OxBxgmIh6o",  # Serra da Capivara
+    #"F01ciDMSJtA",  # Fernando de Noronha
+    #"Q_fhu4Ckh5c",  # Salto Angel
+    #"eH3vK1Be3CM",  # RRuas em Fernando de Noronha
+    #"uKwxuE_DulQ"  # Ceará
+
+    # TV Brasil - Nossos Biomas
+    "zg2xnELQ6H0",  # Cerrado
+    "FQdBcA1rK5Q",  # Pantanal
+    "_MyLk4v-Oj0",  # Amazônia
+    "At-1KfyUwBo",  # Pampa
+    "xjRWPFhxzlA",  # Caatinga
+    "TCeRkEk1KRA",  # Mata Atlântica
+
+    # TV Brasil - Nos Caminhos dos Viajantes
+    "boMzml8yRvw",  # Ilhas Oceânicas e Costeiras
+    "yKt9stIuZ_c",  # Rio de Janeiro
+    "sjwffBCv8eM",  # Da Baía de Guanabara à Serra de Ibitipoca
+    "b2XXDW0ZmX8",  # Serra do Espinhaço
+    "s_f0m7dCfNw"   # De Ouro Branco à Serra da Canastra
 ]
 
 [remote.keys.b4]
