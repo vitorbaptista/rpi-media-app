@@ -60,8 +60,12 @@ class Controller:
             return None
 
         method = key_config["method"]
+        key_params = key_config["params"]
+        if not isinstance(key_params, list):
+            key_params = [key_params]
+
         params = {
-            "params": key_config["params"],
+            "params": key_params,
             "max_enqueued_videos": key_config.get("max_enqueued_videos"),
         }
 
