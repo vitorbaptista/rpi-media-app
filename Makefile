@@ -29,6 +29,7 @@ tail_logs:
 	journalctl -u rpimedia.service -f
 
 ensure_video_is_playing:
+	# Toca TV Aparecida se nada estiver tocando
 	flock --nonblock /tmp/rpi_$@.pid \
 		uv run python chromecast_checker.py keyboard_input c; \
 		rm -f /tmp/rpi_$@.pid
@@ -38,4 +39,10 @@ play_sessao_da_tarde:
 		uv run python play_sessao_da_tarde.py
 		rm -f /tmp/rpi_sessao_da_tarde_$@.pid
 	# Play TV Aparecida after the video finishes
+	make ensure_video_is_playing
+
+play_viagens_brasil:
+	flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
+		uv run rpimedia send_event keyboard_input b; \
+		rm -f /tmp/rpi_viagens_brasil_$@.pid
 	make ensure_video_is_playing
