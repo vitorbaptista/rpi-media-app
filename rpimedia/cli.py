@@ -22,13 +22,12 @@ def _load_config():
 
 @click.group()
 def cli():
-    """Media controller CLI."""
     pass
 
 
 @cli.command()
-def run():
-    """Run the media controller."""
+def start():
+    """Start the media controller."""
 
     async def run_all():
         # Create EventBus inside the async context to ensure it uses the right event loop
