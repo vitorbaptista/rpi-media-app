@@ -30,7 +30,7 @@ tail_logs:
 
 ensure_video_is_playing:
 	flock --nonblock /tmp/rpi_$@.pid \
-		uv run python chromecast_checker.py "https://www.youtube.com/watch?v=4CAmwaFJo6k"; \
+		uv run python chromecast_checker.py keyboard_input c; \
 		rm -f /tmp/rpi_$@.pid
 
 play_sessao_da_tarde:

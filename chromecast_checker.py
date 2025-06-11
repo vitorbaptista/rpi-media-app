@@ -2,11 +2,11 @@
 
 import sys
 import logging
-import argparse
 import subprocess
 import time
 from typing import Optional, Tuple, Any, Dict
 import catt.api
+import click
 
 # Set up logging
 logging.basicConfig(
@@ -70,35 +70,32 @@ def check_cast_status(
     return device, all_playing
 
 
-def main() -> int:
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description="Check Chromecast device and play URL if nothing is playing."
-    )
-    parser.add_argument("url", help="URL to play when nothing is playing")
-    parser.add_argument(
-        "--retries",
-        type=int,
-        default=2,
-        help="Number of times to check status (default: 2)",
-    )
-    parser.add_argument(
-        "--sleep",
-        type=int,
-        default=5,
-        help="Seconds to wait between checks (default: 5)",
-    )
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    args = parser.parse_args()
+@click.command()
+@click.argument("event_kind", type=str)
+@click.argument("event_params", nargs=-1, type=str)
+@click.option("--retries", type=int, default=2, help="Number of times to check status")
+@click.option("--sleep", type=int, default=5, help="Seconds to wait between checks")
+@click.option("--debug", is_flag=True, help="Enable debug logging")
+def main(
+    event_kind: str,
+    event_params: tuple[str, ...],
+    retries: int,
+    sleep: int,
+    debug: bool,
+) -> int:
+    """Check Chromecast device and send event if nothing is playing.
 
+    EVENT_KIND is the type of event to send (e.g. 'keyboard_input', 'youtube')
+    EVENT_PARAMS are the parameters for the event
+
+    The event is the same as the ones required by `rpimedia`.
+    """
     # Set debug level if requested
-    if args.debug:
+    if debug:
         logger.setLevel(logging.DEBUG)
 
     try:
-        device, is_playing = check_cast_status(
-            num_retries=args.retries, sleep_seconds=args.sleep
-        )
+        device, is_playing = check_cast_status(num_retries=retries, sleep_seconds=sleep)
 
         if not device:
             logger.error("Failed to get a valid device")
@@ -108,9 +105,9 @@ def main() -> int:
             logger.info("No action needed - device is playing")
             return 0
 
-        logger.info(f"Starting playback: {args.url}")
-        subprocess.run(["catt", "cast", args.url])
-        logger.info("Playback started")
+        logger.info(f"Sending event: {event_kind} with params {event_params}")
+        subprocess.run(["rpimedia", "send_event", event_kind, *event_params])
+        logger.info("Event sent")
         return 0
 
     except Exception as e:
