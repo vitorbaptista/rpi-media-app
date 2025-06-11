@@ -105,7 +105,9 @@ def main(
             logger.info("No action needed - device is playing")
             return 0
 
-        logger.info(f"Sending event: {event_kind} with params {event_params}")
+        logger.info(
+            f"Device is not playing. Sending event: {event_kind} with params {event_params}"
+        )
         subprocess.run(["rpimedia", "send_event", event_kind, *event_params])
         logger.info("Event sent")
         return 0
