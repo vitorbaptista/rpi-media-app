@@ -4,45 +4,13 @@ import glob
 import os
 import asyncio
 import subprocess
-import functools
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional
 from . import event_bus as eb
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
-
-T = TypeVar("T")
-F = TypeVar("F", bound=Callable[..., Any])
-
-
-def _debounce(wait_time: float) -> Callable[[F], F]:
-    """
-    Decorator that prevents a function from being called more than once every wait_time seconds.
-    For async functions.
-    """
-
-    def decorator(func: F) -> F:
-        last_called: Dict[Any, float] = {}
-
-        @functools.wraps(func)
-        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            current_time = asyncio.get_event_loop().time()
-            key = args[0] if args else None  # Use first arg as key
-            if key is None:
-                return await func(self, *args, **kwargs)
-
-            last_time = last_called.get(key, 0)
-            if current_time - last_time < wait_time:
-                return
-
-            last_called[key] = current_time
-            return await func(self, *args, **kwargs)
-
-        return wrapper  # type: ignore
-
-    return decorator
 
 
 class Controller:
@@ -80,7 +48,6 @@ class Controller:
                 method = event_kind
                 return await self._handle_method_call(method, event_data)
 
-    @_debounce(wait_time=20)
     async def _handle_key_press(
         self, event_data: Dict[str, Any]
     ) -> Optional[asyncio.subprocess.Process]:

@@ -2,7 +2,38 @@ import asyncio
 import threading
 import signal
 import keyboard
+import functools
+import time
+from typing import Any, Callable, TypeVar
 from . import event_bus as eb
+
+T = TypeVar("T")
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def _debounce(wait_time: float) -> Callable[[F], F]:
+    """
+    Decorator that prevents a function from being called more than once every wait_time seconds.
+    For synchronous functions.
+    """
+
+    def decorator(func: F) -> F:
+        last_called: float = 0
+
+        @functools.wraps(func)
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> None:
+            nonlocal last_called
+            current_time = time.time()
+
+            if current_time - last_called < wait_time:
+                return
+
+            last_called = current_time
+            return func(self, *args, **kwargs)
+
+        return wrapper  # type: ignore
+
+    return decorator
 
 
 class InputListener:
@@ -60,6 +91,7 @@ class InputListener:
             if task != asyncio.current_task():
                 task.cancel()
 
+    @_debounce(wait_time=10)
     def handle_key_event(self, e):
         """Handle keyboard events and convert them to system events."""
         if self._loop is None:
