@@ -64,7 +64,14 @@ def start():
 @cli.command(name="send_event")
 @click.argument("event_kind")
 @click.argument("event_data", nargs=-1)
-def send_event(event_kind: str, event_data: tuple[str, ...]):
+@click.option(
+    "--max-enqueued-videos",
+    type=click.IntRange(min=0),
+    help="Maximum number of videos to enqueue (only applies to youtube events)",
+)
+def send_event(
+    event_kind: str, event_data: tuple[str, ...], max_enqueued_videos: int | None
+):
     """Send an event to the running media controller instance.
 
     This command allows sending events to a running media controller instance through IPC.
@@ -73,17 +80,21 @@ def send_event(event_kind: str, event_data: tuple[str, ...]):
 
     Examples:
         $ rpimedia send_event keyboard_input a
+        $ rpimedia send_event keyboard_input b --max-enqueued-videos 5
         $ rpimedia send_event youtube 4CAmwaFJo6k
         $ rpimedia send_event volume_up 15
     """
 
-    async def send(event_kind, event_data):
+    async def send(event_kind, event_data, max_enqueued_videos):
         # For keyboard events, we need to wrap the key in the expected format
         if event_kind == "keyboard_input":
             assert (
                 len(event_data) == 1
             ), "Keyboard input must have exactly one parameter"
-            event_data = {"key": event_data[0]}
+            event_data = {
+                "key": event_data[0],
+                "max_enqueued_videos": max_enqueued_videos,
+            }
         else:
             params = [event_data] if isinstance(event_data, str) else event_data
             event_data = {"params": params}
@@ -94,7 +105,7 @@ def send_event(event_kind: str, event_data: tuple[str, ...]):
             exit(1)
 
     try:
-        asyncio.run(send(event_kind, event_data))
+        asyncio.run(send(event_kind, event_data, max_enqueued_videos))
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         exit(1)

@@ -41,5 +41,5 @@ play_sessao_da_tarde:
 
 play_viagens_brasil:
 	flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
-		uv run rpimedia send_event keyboard_input b; \
+		uv run rpimedia send_event keyboard_input b --max-enqueued-videos 0; \
 		rm -f /tmp/rpi_viagens_brasil_$@.pid

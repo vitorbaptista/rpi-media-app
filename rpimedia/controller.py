@@ -75,14 +75,17 @@ class Controller:
 
         match event_kind:
             case "keyboard_input":
-                return await self._handle_key_press(event_data["key"])
+                return await self._handle_key_press(event_data)
             case _:
                 method = event_kind
-                params = event_data.get("params", [])
-                return await self._handle_method_call(method, params)
+                return await self._handle_method_call(method, event_data)
 
     @_debounce(wait_time=20)
-    async def _handle_key_press(self, key: str) -> Optional[asyncio.subprocess.Process]:
+    async def _handle_key_press(
+        self, event_data: Dict[str, Any]
+    ) -> Optional[asyncio.subprocess.Process]:
+        key = event_data["key"]
+
         binding = self._config["remote"]["bindings"].get(key)
         key_config = self._config["remote"]["keys"].get(binding)
         if not binding or not key_config:
@@ -90,23 +93,36 @@ class Controller:
             return None
 
         method = key_config["method"]
-        params = key_config["params"]
+        params = {
+            "params": key_config["params"],
+            "max_enqueued_videos": key_config.get("max_enqueued_videos"),
+        }
 
         # We shuffle the params to avoid always playing the same video
-        random.shuffle(params)
+        random.shuffle(params["params"])
 
         return await self._handle_method_call(method, params)
 
     async def _handle_method_call(
-        self, method: str, params: List[str]
+        self, method: str, data: Dict[str, Any]
     ) -> Optional[asyncio.subprocess.Process]:
+        params = data["params"]
+
         match method:
             case "youtube":
                 first_video = params[0]
+                max_enqueued_videos = data.get("max_enqueued_videos")
+                if max_enqueued_videos is None:
+                    max_enqueued_videos = self.MAX_ENQUEUED_VIDEOS
+                else:
+                    assert (
+                        max_enqueued_videos >= 0
+                    ), f"Max enqueued videos must be greater or equal to 0 (was {max_enqueued_videos})"
+
                 result = await self.play_youtube(first_video)
 
                 # Enqueue the remaining videos if there are any
-                for video_id in params[1 : self.MAX_ENQUEUED_VIDEOS]:
+                for video_id in params[1:max_enqueued_videos]:
                     await self.enqueue_youtube(video_id)
                     await asyncio.sleep(2)
 
