@@ -38,11 +38,8 @@ play_sessao_da_tarde:
 	flock --nonblock /tmp/rpi_sessao_da_tarde_$@.pid \
 		uv run python play_sessao_da_tarde.py
 		rm -f /tmp/rpi_sessao_da_tarde_$@.pid
-	# Play TV Aparecida after the video finishes
-	make ensure_video_is_playing
 
 play_viagens_brasil:
 	flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
 		uv run rpimedia send_event keyboard_input b; \
 		rm -f /tmp/rpi_viagens_brasil_$@.pid
-	make ensure_video_is_playing
