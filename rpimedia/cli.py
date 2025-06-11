@@ -12,6 +12,9 @@ from . import input_listener
 from . import ipc_listener
 
 
+# Configure logging to suppress asyncio debug messages
+logging.getLogger("asyncio").setLevel(logging.INFO)
+
 CONFIG_PATH = pathlib.Path(__file__).parent.parent / "config.toml"
 
 
@@ -43,18 +46,19 @@ def start():
         ipc_task = asyncio.create_task(ipc_event_listener.run())
 
         try:
+            logging.info("Starting media controller...")
             # Wait for all tasks to complete
             await asyncio.gather(controller_task, keyboard_task, ipc_task)
         except asyncio.CancelledError:
-            print("Tasks cancelled, shutting down...")
+            logging.info("Shutting down...")
 
     try:
         asyncio.run(run_all())
     except KeyboardInterrupt:
-        print("\nKeyboard interrupt received, shutting down...")
+        logging.info("\nKeyboard interrupt received, shutting down...")
     finally:
         # Ensure terminal is back to normal state
-        print("Application terminated.")
+        logging.info("Application terminated.")
 
 
 @cli.command(name="send_event")
@@ -72,9 +76,6 @@ def send_event(event_kind: str, event_data: tuple[str, ...]):
         $ rpimedia send_event youtube 4CAmwaFJo6k
         $ rpimedia send_event volume_up 15
     """
-
-    # Configure logging to suppress asyncio debug messages
-    logging.getLogger("asyncio").setLevel(logging.INFO)
 
     async def send(event_kind, event_data):
         # For keyboard events, we need to wrap the key in the expected format
