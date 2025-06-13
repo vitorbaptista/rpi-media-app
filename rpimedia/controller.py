@@ -66,7 +66,7 @@ class Controller:
 
         params = {
             "params": key_params,
-            "max_enqueued_videos": key_config.get("max_enqueued_videos"),
+            "max_enqueued_videos": event_data.get("max_enqueued_videos"),
         }
 
         # We shuffle the params to avoid always playing the same video
