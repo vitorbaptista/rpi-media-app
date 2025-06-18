@@ -35,7 +35,7 @@ ensure_video_is_playing:
 		rm -f /tmp/rpi_$@.pid
 
 play_sessao_da_tarde:
-	@if uv run python get_current_media_info.py | grep -q "TV Aparecida"; then \
+	@if uv run python get_current_media_info.py | grep -qE '(TV Aparecida|"current_time": 0,)'; then \
 		flock --nonblock /tmp/rpi_sessao_da_tarde_$@.pid \
 			uv run python play_sessao_da_tarde.py; \
 		rm -f /tmp/rpi_sessao_da_tarde_$@.pid; \
@@ -44,7 +44,7 @@ play_sessao_da_tarde:
 	fi
 
 play_viagens_brasil:
-	@if uv run python get_current_media_info.py | grep -q "TV Aparecida"; then \
+	@if uv run python get_current_media_info.py | grep -qE '(TV Aparecida|"current_time": 0,)'; then \
 		flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
 			uv run rpimedia send_event keyboard_input b --max-enqueued-videos 0; \
 		rm -f /tmp/rpi_viagens_brasil_$@.pid; \
