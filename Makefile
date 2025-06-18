@@ -35,11 +35,19 @@ ensure_video_is_playing:
 		rm -f /tmp/rpi_$@.pid
 
 play_sessao_da_tarde:
-	flock --nonblock /tmp/rpi_sessao_da_tarde_$@.pid \
-		uv run python play_sessao_da_tarde.py
-		rm -f /tmp/rpi_sessao_da_tarde_$@.pid
+	@if uv run python get_current_media_info.py | grep -q "TV Aparecida"; then \
+		flock --nonblock /tmp/rpi_sessao_da_tarde_$@.pid \
+			uv run python play_sessao_da_tarde.py; \
+		rm -f /tmp/rpi_sessao_da_tarde_$@.pid; \
+	else \
+		echo "TV Aparecida is not currently playing. Skipping play_sessao_da_tarde."; \
+	fi
 
 play_viagens_brasil:
-	flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
-		uv run rpimedia send_event keyboard_input b --max-enqueued-videos 0; \
-		rm -f /tmp/rpi_viagens_brasil_$@.pid
+	@if uv run python get_current_media_info.py | grep -q "TV Aparecida"; then \
+		flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
+			uv run rpimedia send_event keyboard_input b --max-enqueued-videos 0; \
+		rm -f /tmp/rpi_viagens_brasil_$@.pid; \
+	else \
+		echo "TV Aparecida is not currently playing. Skipping play_viagens_brasil."; \
+	fi
