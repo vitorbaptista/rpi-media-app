@@ -2,6 +2,7 @@
 # $PATH required for uv
 
 */3 * * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make ensure_video_is_playing")
+*/3 2-7 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make mute_before_dawn")
 0 12,18 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_musica")
 0 10,16 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_sessao_da_tarde")
 0 15 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_viagens_brasil")

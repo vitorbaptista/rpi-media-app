@@ -1,4 +1,4 @@
-.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing play_sessao_da_tarde play_musica
+.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing play_sessao_da_tarde play_musica mute_before_dawn
 
 install:
 	uv sync
@@ -32,6 +32,12 @@ ensure_video_is_playing:
 	# Toca TV Aparecida se nada estiver tocando
 	flock --nonblock /tmp/rpi_$@.pid \
 		uv run python chromecast_checker.py keyboard_input c; \
+		rm -f /tmp/rpi_$@.pid
+
+mute_before_dawn:
+	# Volume zero pelas manhãs. Sono é importante.
+	flock --nonblock /tmp/rpi_$@.pid \
+		uv run python mute_before_dawn.py 05:00 65; \
 		rm -f /tmp/rpi_$@.pid
 
 play_sessao_da_tarde:
