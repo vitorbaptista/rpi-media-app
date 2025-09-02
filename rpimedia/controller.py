@@ -111,8 +111,8 @@ class Controller:
                 url = params[0]
                 return await self.play_url(url)
             case "glob":
-                glob_path = params[0]
-                return await self.play_glob(glob_path)
+                glob_paths = params
+                return await self.play_globs(glob_paths)
             case _:
                 logger.debug(f"Unknown method: {method}")
                 return None
@@ -150,10 +150,14 @@ class Controller:
             ["catt", "cast", "--block", video_path], min_execution_time=120
         )
 
-    async def play_glob(self, glob_path: str) -> Optional[asyncio.subprocess.Process]:
-        logger.debug(f"Playing glob {glob_path}")
-        glob_path = os.path.join(BASE_DIR, glob_path)
-        video_paths: List[str] = sorted(glob.glob(glob_path, recursive=True))
+    async def play_globs(self, glob_paths: List[str]) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing globs in {glob_paths}")
+        glob_paths = [os.path.join(BASE_DIR, glob_path) for glob_path in glob_paths]
+        video_paths: List[str] = sorted(list(set([
+            path
+            for glob_path in glob_paths
+            for path in glob.glob(glob_path, recursive=True)
+        ])))
         if not video_paths:
             logger.error(f"No video found for glob {glob_path}")
             return None
