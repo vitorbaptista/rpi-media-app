@@ -37,7 +37,7 @@ ensure_video_is_playing:
 mute_before_dawn:
 	# Volume zero pelas manhãs. Sono é importante.
 	flock --nonblock /tmp/rpi_$@.pid \
-		uv run python mute_before_dawn.py 05:00 65; \
+		uv run python mute_before_dawn.py 05:30 75; \
 		rm -f /tmp/rpi_$@.pid
 
 play_sessao_da_tarde:
