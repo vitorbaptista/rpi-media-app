@@ -55,7 +55,13 @@ def check_cast_status(
 
         device.controller.prep_info()
         media_info: Dict[str, Any] = device.controller.media_info
-        is_playing = bool(media_info.get("title", media_info).get("player_state"))
+        logger.debug(f"Media Info", media_info)
+
+        if media_info is None:
+            is_playing = False
+        else:
+            current_time = media_info.get("current_time")
+            is_playing = current_time is not None and current_time > 0
 
         if not is_playing:
             all_playing = False
