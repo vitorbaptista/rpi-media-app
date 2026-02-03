@@ -55,12 +55,15 @@ def check_cast_status(
 
         device.controller.prep_info()
         media_info: Dict[str, Any] = device.controller.media_info
-        logger.debug(f"Media Info", media_info)
+        logger.debug(f"Media Info: {media_info}")
 
         if media_info is None:
             is_playing = False
         else:
             current_time = media_info.get("current_time")
+            # This won't work for TV Aparecida or any live YouTube videos (they
+            # have current_time = None). We don't care, because the only live
+            # show is TV Aparecida anyway.
             is_playing = current_time is not None and current_time > 0
 
         if not is_playing:

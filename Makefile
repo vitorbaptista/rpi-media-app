@@ -31,7 +31,7 @@ tail_logs:
 ensure_video_is_playing:
 	# Toca TV Aparecida se nada estiver tocando
 	flock --nonblock /tmp/rpi_$@.pid \
-		uv run python chromecast_checker.py keyboard_input c; \
+		uv run python chromecast_checker.py --debug --sleep 60 keyboard_input c; \
 		rm -f /tmp/rpi_$@.pid
 
 mute_before_dawn:
