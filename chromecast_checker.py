@@ -61,10 +61,12 @@ def check_cast_status(
             is_playing = False
         else:
             current_time = media_info.get("current_time")
-            # This won't work for TV Aparecida or any live YouTube videos (they
-            # have current_time = None). We don't care, because the only live
-            # show is TV Aparecida anyway.
-            is_playing = current_time is not None and current_time > 0
+            media_title = media_info.get("title", "")
+            if current_time is None:
+                # TV Aparecida and other live videos have NULL current_time
+                is_playing = "ao vivo" in media_title.lower()
+            else:
+                is_playing = current_time > 0
 
         if not is_playing:
             all_playing = False
