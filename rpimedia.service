@@ -11,6 +11,7 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=rpimedia
 
 [Install]
 WantedBy=multi-user.target
