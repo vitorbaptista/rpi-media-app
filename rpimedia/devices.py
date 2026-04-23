@@ -1,12 +1,18 @@
 import asyncio
 import logging
+import mimetypes
+import os
+import pathlib
 import re
 import shlex
 import subprocess
 from abc import ABC
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import quote
 
 import catt.api
+
+from . import httpserver
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +211,7 @@ class ChromecastDevice(Device):
 
 class FireTVDevice(Device):
     ADB_PORT: int = 5555
-    MDNS_TIMEOUT: float = 5
+    MDNS_TIMEOUT: float = 15
 
     PRIME_VIDEO_PACKAGE: str = "com.amazon.firebat"
     PRIME_VIDEO_ACTIVITY: str = "com.amazon.pyrocore.IgnitionActivity"
@@ -219,19 +225,30 @@ class FireTVDevice(Device):
     NETFLIX_WAIT_SECONDS: float = 2
     NETFLIX_FLAGS: str = "0x10000020"
 
+    VLC_PACKAGE: str = "org.videolan.vlc"
+    VLC_ACTIVITY: str = ".StartActivity"
+
     _MEDIA_PACKAGES: Tuple[str, ...] = (
-        PRIME_VIDEO_PACKAGE, YOUTUBE_PACKAGE, NETFLIX_PACKAGE,
+        PRIME_VIDEO_PACKAGE, YOUTUBE_PACKAGE, NETFLIX_PACKAGE, VLC_PACKAGE,
     )
 
     supports_enqueue = False
     supported_methods = frozenset({
-        "youtube", "prime_video", "netflix",
+        "youtube", "prime_video", "netflix", "video", "glob",
         "volume_up", "volume_down", "pause",
     })
 
-    def __init__(self, address: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        address: Optional[str] = None,
+        video_root: Optional[str] = None,
+    ) -> None:
         self._configured_address = address
         self._cached_ip: Optional[str] = None
+        self._video_root = (
+            pathlib.Path(video_root).resolve() if video_root else None
+        )
+        self._video_http: Optional[httpserver.VideoServer] = None
 
     async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing youtube video {video_id}")
@@ -283,6 +300,44 @@ class FireTVDevice(Device):
         logger.debug("Toggling play/pause")
         return await self._keyevent("KEYCODE_MEDIA_PLAY_PAUSE")
 
+    async def play_video(self, path: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing local video {path}")
+        if self._video_root is None:
+            logger.warning(
+                "FireTVDevice has no video_root configured; cannot play "
+                "local files"
+            )
+            return None
+        try:
+            rel = pathlib.Path(path).resolve().relative_to(self._video_root)
+        except ValueError:
+            logger.warning(
+                f"video path {path!r} is outside video_root "
+                f"{str(self._video_root)!r}; skipping"
+            )
+            return None
+        # Resolve Fire TV IP first so we bind the HTTP server to the interface
+        # that actually routes to it (not, e.g., Tailscale).
+        fire_tv_ip = await self._resolve_ip()
+        if fire_tv_ip is None:
+            return None
+        host = httpserver.detect_local_ip(fire_tv_ip)
+        if host is None:
+            return None
+        if self._video_http is None:
+            self._video_http = httpserver.VideoServer(str(self._video_root))
+        port = self._video_http.ensure_running(bind_host=host)
+        url = f"http://{host}:{port}/" + "/".join(quote(p) for p in rel.parts)
+        # Derive a concrete MIME type so VLC's VIEW intent filter matches
+        # reliably (a wildcard `video/*` can miss on some Fire OS versions).
+        mime, _ = mimetypes.guess_type(rel.name)
+        await self._force_stop(self.VLC_PACKAGE)
+        return await self._start(
+            f"{self.VLC_PACKAGE}/{self.VLC_ACTIVITY}",
+            url,
+            mime_type=mime or "",
+        )
+
     async def is_playing(self) -> bool:
         """Return True iff a media session reports state=3 AND a media app
         is currently foregrounded.
@@ -305,6 +360,7 @@ class FireTVDevice(Device):
         url: str,
         flags: str = "",
         extras: str = "",
+        mime_type: str = "",
     ) -> Optional[asyncio.subprocess.Process]:
         cmd_parts = [
             "am start",
@@ -312,6 +368,8 @@ class FireTVDevice(Device):
             "-a android.intent.action.VIEW",
             f"-d {shlex.quote(url)}",
         ]
+        if mime_type:
+            cmd_parts.append(f"-t {shlex.quote(mime_type)}")
         if flags:
             cmd_parts.append(f"-f {flags}")
         if extras:
@@ -507,7 +565,12 @@ def build_device(config: Dict[str, Any]) -> Device:
     if dev_type == "chromecast":
         return ChromecastDevice()
     if dev_type == "firetv":
-        return FireTVDevice(address=dev_config.get("address"))
+        repo_root = os.path.join(os.path.dirname(__file__), "..")
+        video_root = os.path.join(repo_root, "data")
+        return FireTVDevice(
+            address=dev_config.get("address"),
+            video_root=video_root,
+        )
     raise ValueError(f"unknown device type: {dev_type!r}")
 
 
