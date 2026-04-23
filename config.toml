@@ -11,11 +11,15 @@ d = "b6"
 
 [remote.keys.volume_up]
 method = "volume_up"
-params = "15"
+params = "5"
 
 [remote.keys.volume_down]
 method = "volume_down"
-params = "15"
+params = "5"
+
+[remote.keys.pause]
+method = "pause"
+params = []
 
 [remote.keys.b1]
 method = "youtube"
@@ -102,3 +106,7 @@ params = [
     "data/sessao_da_tarde/filmes/**/*.mp4",
     "data/sessao_da_tarde/filmes/**/*.mkv"
 ]
+
+[device]
+type = "firetv"
+address = "192.168.15.174"
