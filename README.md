@@ -1,6 +1,6 @@
 # 📺 RPI Media App
 
-Sistema de automação de mídia para Raspberry Pi que controla um Chromecast via controle remoto IR ou teclado. Perfeito para criar uma experiência de TV automatizada para idosos ou qualquer pessoa que queira simplificar o acesso a conteúdo de vídeo.
+Sistema de automação de mídia para Raspberry Pi que controla um Chromecast ou um Fire TV via controle remoto IR ou teclado. Perfeito para criar uma experiência de TV automatizada para idosos ou qualquer pessoa que queira simplificar o acesso a conteúdo de vídeo.
 
 ## ✨ Funcionalidades
 
@@ -30,9 +30,10 @@ Sistema de automação de mídia para Raspberry Pi que controla um Chromecast vi
 ## 📋 Pré-requisitos
 
 - Raspberry Pi (testado no Pi 4)
-- Chromecast na mesma rede
+- Chromecast **ou** Fire TV na mesma rede
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (gerenciador de pacotes Python)
+- Para Fire TV: pacotes de sistema `android-tools` (adb) e `avahi-utils` (avahi-browse), e ADB debugging habilitado no Fire TV (ver [FIRETV.md](FIRETV.md))
 - Opcional: Receptor IR + controle remoto
 
 ## 🚀 Instalação
@@ -50,7 +51,17 @@ cd rpi-media-app
 make install
 ```
 
-### 3. Configure o mapeamento de teclas
+### 3. Escolha o dispositivo (opcional)
+
+Por padrão, o app controla um Chromecast. Para usar um Fire TV, adicione ao `config.toml`:
+
+```toml
+[device]
+type = "firetv"                        # "chromecast" (padrão) ou "firetv"
+# address = "192.168.15.174"           # opcional; se omitido, descobre via mDNS
+```
+
+### 4. Configure o mapeamento de teclas
 
 Edite o arquivo `config.toml` para mapear teclas aos comandos desejados:
 
@@ -78,7 +89,7 @@ params = [
 ]
 ```
 
-### 4. Configure como serviço (produção)
+### 5. Configure como serviço (produção)
 
 ```bash
 sudo make setup
@@ -161,15 +172,19 @@ rpi-media-app/
 
 ## 🎬 Métodos Disponíveis
 
-| Método | Descrição | Parâmetros |
-|--------|-----------|------------|
-| `youtube` | Toca vídeo(s) do YouTube | Lista de IDs de vídeos |
-| `video` | Toca um vídeo local | Caminho do arquivo |
-| `glob` | Toca vídeo aleatório de um padrão | Padrão glob (ex: `data/**/*.mp4`) |
-| `url` | Toca qualquer URL | URL completa |
-| `volume_up` | Aumenta volume | Quantidade (1-100) |
-| `volume_down` | Diminui volume | Quantidade (1-100) |
-| `pause` | Pausa/retoma reprodução | - |
+| Método | Descrição | Parâmetros | Chromecast | Fire TV |
+|--------|-----------|------------|:---:|:---:|
+| `youtube` | Toca vídeo(s) do YouTube | Lista de IDs (11 chars) | ✅ | ✅ (sem enqueue) |
+| `prime_video` | Toca título do Prime Video | GTI (`amzn1.dv.gti.<uuid>`) | ❌ | ✅ |
+| `netflix` | Toca título do Netflix | ID numérico | ❌ | ✅ |
+| `video` | Toca um vídeo local | Caminho do arquivo | ✅ | ❌ |
+| `glob` | Toca vídeo aleatório de um padrão | Padrão glob (ex: `data/**/*.mp4`) | ✅ | ❌ |
+| `url` | Toca qualquer URL | URL completa | ✅ | ❌ |
+| `volume_up` | Aumenta volume | Quantidade | ✅ | ✅ |
+| `volume_down` | Diminui volume | Quantidade | ✅ | ✅ |
+| `pause` | Pausa/retoma reprodução | - | ✅ | ✅ |
+
+Métodos incompatíveis com o dispositivo escolhido são rejeitados na inicialização do serviço com uma mensagem clara. Para detalhes do Fire TV (incluindo como obter GTIs do Prime Video), veja [FIRETV.md](FIRETV.md).
 
 ## 🔧 Deploy
 

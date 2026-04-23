@@ -1,0 +1,406 @@
+import asyncio
+import logging
+import re
+import shlex
+import subprocess
+from abc import ABC
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+KNOWN_METHODS = frozenset({
+    "youtube", "video", "url", "glob",
+    "prime_video", "netflix",
+    "volume_up", "volume_down", "pause",
+})
+
+_PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
+    "prime_video": re.compile(
+        r"^amzn1\.dv\.gti\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+        r"[0-9a-f]{4}-[0-9a-f]{12}$"
+    ),
+    "netflix": re.compile(r"^\d+$"),
+    "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
+}
+
+
+class Device(ABC):
+    supports_enqueue: bool = False
+    supported_methods: frozenset[str] = frozenset()
+
+    async def _unsupported(self, method: str) -> None:
+        logger.warning(
+            f"{self.__class__.__name__} does not support {method}"
+        )
+        return None
+
+    async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("play_youtube")
+
+    async def enqueue_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("enqueue_youtube")
+
+    async def play_prime_video(self, gti: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("play_prime_video")
+
+    async def play_netflix(self, netflix_id: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("play_netflix")
+
+    async def play_url(self, url: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("play_url")
+
+    async def play_video(self, path: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("play_video")
+
+    async def skip_video(self) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("skip_video")
+
+    async def volume_up(self, n: int) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("volume_up")
+
+    async def volume_down(self, n: int) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("volume_down")
+
+    async def pause(self) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("pause")
+
+
+class ChromecastDevice(Device):
+    VIDEO_MIN_EXECUTION_TIME: float = 120
+    MAX_RETRY_ATTEMPTS: int = 3
+
+    supports_enqueue = True
+    supported_methods = frozenset({
+        "youtube", "video", "url", "glob",
+        "volume_up", "volume_down", "pause",
+    })
+
+    async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing youtube video {video_id}")
+        return await self._run(
+            ["catt", "cast", f"https://www.youtube.com/watch?v={video_id}"]
+        )
+
+    async def enqueue_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Enqueuing youtube video {video_id}")
+        return await self._run(
+            ["catt", "add", f"https://www.youtube.com/watch?v={video_id}"]
+        )
+
+    async def play_url(self, url: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing url {url}")
+        return await self._run(["catt", "cast", url])
+
+    async def play_video(self, path: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing video {path}")
+        return await self._run(
+            ["catt", "cast", "--block", path],
+            min_execution_time=self.VIDEO_MIN_EXECUTION_TIME,
+        )
+
+    async def skip_video(self) -> Optional[asyncio.subprocess.Process]:
+        logger.debug("Skipping video")
+        return await self._run(["catt", "skip"])
+
+    async def volume_up(self, n: int) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Volume up by {n}")
+        return await self._run(["catt", "volumeup", str(n)])
+
+    async def volume_down(self, n: int) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Volume down by {n}")
+        return await self._run(["catt", "volumedown", str(n)])
+
+    async def pause(self) -> Optional[asyncio.subprocess.Process]:
+        logger.debug("Toggling play/pause")
+        return await self._run(["catt", "play_toggle"])
+
+    async def _run(
+        self,
+        command: List[str],
+        min_execution_time: Optional[float] = None,
+        _attempts: int = 0,
+    ) -> Optional[asyncio.subprocess.Process]:
+        process: Optional[asyncio.subprocess.Process] = None
+        try:
+            _attempts += 1
+            if _attempts > self.MAX_RETRY_ATTEMPTS:
+                logger.error(
+                    f"Process finished too quickly after {self.MAX_RETRY_ATTEMPTS} "
+                    f"attempts. Giving up."
+                )
+                return None
+
+            process = await asyncio.create_subprocess_exec(*command)
+
+            if not min_execution_time:
+                return process
+
+            await asyncio.wait_for(process.wait(), timeout=min_execution_time)
+
+            logger.info(
+                f"Process finished too quickly running again "
+                f"(attempt {_attempts}/{self.MAX_RETRY_ATTEMPTS})"
+            )
+            return await self._run(command, min_execution_time, _attempts)
+
+        except asyncio.TimeoutError:
+            return process
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            logger.debug(f"Failed to run command: {e}")
+            return None
+
+
+class FireTVDevice(Device):
+    ADB_PORT: int = 5555
+    MDNS_TIMEOUT: float = 5
+
+    PRIME_VIDEO_PACKAGE: str = "com.amazon.firebat"
+    PRIME_VIDEO_ACTIVITY: str = "com.amazon.pyrocore.IgnitionActivity"
+    PRIME_VIDEO_WAIT_SECONDS: float = 6
+
+    YOUTUBE_PACKAGE: str = "com.amazon.firetv.youtube"
+    YOUTUBE_ACTIVITY: str = "dev.cobalt.app.MainActivity"
+
+    NETFLIX_PACKAGE: str = "com.netflix.ninja"
+    NETFLIX_ACTIVITY: str = ".MainActivity"
+    NETFLIX_WAIT_SECONDS: float = 2
+    NETFLIX_FLAGS: str = "0x10000020"
+
+    supports_enqueue = False
+    supported_methods = frozenset({
+        "youtube", "prime_video", "netflix",
+        "volume_up", "volume_down", "pause",
+    })
+
+    def __init__(self, address: Optional[str] = None) -> None:
+        self._configured_address = address
+        self._cached_ip: Optional[str] = None
+
+    async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing youtube video {video_id}")
+        await self._force_stop(self.YOUTUBE_PACKAGE)
+        return await self._start(
+            f"{self.YOUTUBE_PACKAGE}/{self.YOUTUBE_ACTIVITY}",
+            f"https://www.youtube.com/watch?v={video_id}",
+        )
+
+    async def play_prime_video(self, gti: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing prime video {gti}")
+        await self._force_stop(self.PRIME_VIDEO_PACKAGE)
+        proc = await self._start(
+            f"{self.PRIME_VIDEO_PACKAGE}/{self.PRIME_VIDEO_ACTIVITY}",
+            f"https://watch.amazon.com/detail?gti={gti}",
+        )
+        if proc is None:
+            return None
+        await asyncio.sleep(self.PRIME_VIDEO_WAIT_SECONDS)
+        await self._keyevent("KEYCODE_DPAD_CENTER")
+        return proc
+
+    async def play_netflix(self, netflix_id: str) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Playing netflix {netflix_id}")
+        await self._force_stop(self.NETFLIX_PACKAGE)
+        await asyncio.sleep(self.NETFLIX_WAIT_SECONDS)
+        return await self._start(
+            f"{self.NETFLIX_PACKAGE}/{self.NETFLIX_ACTIVITY}",
+            f"netflix://title/{netflix_id}",
+            flags=self.NETFLIX_FLAGS,
+            extras=f"-e amzn_deeplink_data {shlex.quote(netflix_id)}",
+        )
+
+    async def volume_up(self, n: int) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Volume up by {n}")
+        proc: Optional[asyncio.subprocess.Process] = None
+        for _ in range(n):
+            proc = await self._keyevent("KEYCODE_VOLUME_UP")
+        return proc
+
+    async def volume_down(self, n: int) -> Optional[asyncio.subprocess.Process]:
+        logger.debug(f"Volume down by {n}")
+        proc: Optional[asyncio.subprocess.Process] = None
+        for _ in range(n):
+            proc = await self._keyevent("KEYCODE_VOLUME_DOWN")
+        return proc
+
+    async def pause(self) -> Optional[asyncio.subprocess.Process]:
+        logger.debug("Toggling play/pause")
+        return await self._keyevent("KEYCODE_MEDIA_PLAY_PAUSE")
+
+    async def _start(
+        self,
+        component: str,
+        url: str,
+        flags: str = "",
+        extras: str = "",
+    ) -> Optional[asyncio.subprocess.Process]:
+        cmd_parts = [
+            "am start",
+            f"-n {shlex.quote(component)}",
+            "-a android.intent.action.VIEW",
+            f"-d {shlex.quote(url)}",
+        ]
+        if flags:
+            cmd_parts.append(f"-f {flags}")
+        if extras:
+            cmd_parts.append(extras)
+        return await self._shell(" ".join(cmd_parts))
+
+    async def _force_stop(self, package: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._shell(f"am force-stop {shlex.quote(package)}")
+
+    async def _keyevent(self, keycode: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._shell(f"input keyevent {shlex.quote(keycode)}")
+
+    async def _shell(self, remote_cmd: str) -> Optional[asyncio.subprocess.Process]:
+        """Run `adb shell <cmd>` and wait for completion.
+
+        Awaiting completion is required: back-to-back commands (e.g. force-stop
+        then `am start`) race otherwise, and a not-yet-stopped app causes
+        `am start` to print "brought to the front" and silently drop the URL.
+        """
+        target = await self._ensure_connected()
+        if target is None:
+            return None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "adb", "-s", target, "shell", remote_cmd
+            )
+            await proc.wait()
+            return proc
+        except OSError as e:
+            logger.warning(f"adb shell failed: {e}")
+            return None
+
+    async def _ensure_connected(self) -> Optional[str]:
+        ip = await self._resolve_ip()
+        if ip is None:
+            return None
+        target = f"{ip}:{self.ADB_PORT}"
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "adb", "connect", target,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            out_bytes, _ = await proc.communicate()
+        except OSError as e:
+            logger.warning(f"adb connect failed: {e}")
+            self._cached_ip = None
+            return None
+
+        out = out_bytes.decode(errors="replace")
+        if "connected to" in out or "already connected" in out:
+            return target
+
+        logger.warning(f"adb connect failed for {target}: {out.strip()}")
+        self._cached_ip = None
+        return None
+
+    async def _resolve_ip(self) -> Optional[str]:
+        if self._configured_address:
+            return self._configured_address
+        if self._cached_ip:
+            return self._cached_ip
+        discovered = await _discover_firetv(self.MDNS_TIMEOUT)
+        if discovered is None:
+            logger.warning("no Fire TV discovered via mDNS")
+            return None
+        name, ip = discovered
+        logger.info(f"discovered Fire TV: {name} at {ip}")
+        self._cached_ip = ip
+        return ip
+
+
+async def _discover_firetv(timeout: float) -> Optional[Tuple[str, str]]:
+    """Run avahi-browse and return (name, ip) of the first Fire TV found."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "avahi-browse", "-artp",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+    except OSError as e:
+        logger.warning(f"mDNS discovery failed to spawn avahi-browse: {e}")
+        return None
+
+    try:
+        out_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        logger.warning("mDNS discovery timed out")
+        proc.kill()
+        await proc.wait()
+        return None
+
+    for line in out_bytes.decode(errors="replace").splitlines():
+        if not line.startswith("="):
+            continue
+        fields = line.split(";")
+        if len(fields) < 9 or fields[4] != "Amazon Fire TV":
+            continue
+        ip = fields[7]
+        txt_blob = fields[9] if len(fields) > 9 else ""
+        name = _extract_friendly_name(txt_blob) or fields[4]
+        return name, ip
+    return None
+
+
+def _extract_friendly_name(txt_blob: str) -> Optional[str]:
+    """Pull the instance name from the TXT record `n=...` if present.
+
+    avahi-browse emits all TXT records in a single semicolon field as
+    space-separated quoted strings: `"a=0" "ad=..." "n=Fire TV Cube de VITOR"`.
+    """
+    try:
+        tokens = shlex.split(txt_blob)
+    except ValueError:
+        return None
+    for token in tokens:
+        if token.startswith("n="):
+            return token[2:]
+    return None
+
+
+def build_device(config: Dict[str, Any]) -> Device:
+    dev_config = config.get("device", {}) or {}
+    dev_type = dev_config.get("type", "chromecast")
+    if dev_type == "chromecast":
+        return ChromecastDevice()
+    if dev_type == "firetv":
+        return FireTVDevice(address=dev_config.get("address"))
+    raise ValueError(f"unknown device type: {dev_type!r}")
+
+
+def validate_config(config: Dict[str, Any], device: Device) -> None:
+    """Check every configured remote key's method + params. Raise on any issue."""
+    keys = config.get("remote", {}).get("keys", {})
+    for key_name, key_config in keys.items():
+        method = key_config.get("method")
+        if method not in KNOWN_METHODS:
+            raise ValueError(
+                f"key '{key_name}' uses unknown method: {method!r}"
+            )
+        if method not in device.supported_methods:
+            raise ValueError(
+                f"key '{key_name}' uses method '{method}' which is not "
+                f"supported by {device.__class__.__name__}"
+            )
+        validator = _PARAM_VALIDATORS.get(method)
+        if validator is None:
+            continue
+        params = key_config.get("params", [])
+        if isinstance(params, str):
+            params = [params]
+        for param in params:
+            if not isinstance(param, str) or not validator.match(param):
+                raise ValueError(
+                    f"key '{key_name}': param {param!r} for method "
+                    f"'{method}' does not match expected format"
+                )
+
+    bindings = config.get("remote", {}).get("bindings", {})
+    for binding_key, binding_value in bindings.items():
+        if binding_value not in keys:
+            raise ValueError(
+                f"binding {binding_key!r} -> {binding_value!r} references "
+                f"a key config that does not exist"
+            )

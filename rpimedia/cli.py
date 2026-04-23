@@ -7,6 +7,7 @@ import click
 import logging
 
 from . import controller
+from . import devices
 from . import event_bus as eb
 from . import input_listener
 from . import ipc_listener
@@ -36,7 +37,11 @@ def start():
         # Create EventBus inside the async context to ensure it uses the right event loop
         event_bus = eb.EventBus()
         config = _load_config()
-        ctrl = controller.Controller(config=config, event_bus=event_bus)
+        device = devices.build_device(config)
+        devices.validate_config(config, device)
+        ctrl = controller.Controller(
+            config=config, event_bus=event_bus, device=device
+        )
         listener = input_listener.InputListener(event_bus=event_bus)
         ipc_event_listener = ipc_listener.IPCListener(event_bus=event_bus)
 
