@@ -521,9 +521,10 @@ def validate_config(config: Dict[str, Any], device: Device) -> None:
                 f"key '{key_name}' uses unknown method: {method!r}"
             )
         if method not in device.supported_methods:
-            raise ValueError(
+            logger.warning(
                 f"key '{key_name}' uses method '{method}' which is not "
-                f"supported by {device.__class__.__name__}"
+                f"supported by {device.__class__.__name__}; pressing this "
+                f"button will be a no-op"
             )
         validator = _PARAM_VALIDATORS.get(method)
         if validator is None:

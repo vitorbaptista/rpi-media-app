@@ -83,6 +83,13 @@ class Controller:
     ) -> Optional[asyncio.subprocess.Process]:
         params = data["params"]
 
+        if method not in self.device.supported_methods:
+            logger.warning(
+                f"method {method!r} is not supported by "
+                f"{self.device.__class__.__name__}; ignoring"
+            )
+            return None
+
         match method:
             case "youtube":
                 first_video = params[0]
