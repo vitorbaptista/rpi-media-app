@@ -30,39 +30,22 @@ tail_logs:
 
 ensure_video_is_playing:
 	# Toca TV Aparecida se nada estiver tocando
-	flock --nonblock /tmp/rpi_$@.pid \
-		sh -c 'uv run rpimedia is_playing || uv run rpimedia send_event keyboard_input c'; \
-		rm -f /tmp/rpi_$@.pid
+	flock --nonblock /tmp/rpi_$@.lock \
+		sh -c 'uv run rpimedia is_playing || uv run rpimedia send_event keyboard_input c'
 
 mute_before_dawn:
 	# Volume zero pelas manhãs. Sono é importante.
-	flock --nonblock /tmp/rpi_$@.pid \
-		uv run python mute_before_dawn.py 05:30 80; \
-		rm -f /tmp/rpi_$@.pid
+	flock --nonblock /tmp/rpi_$@.lock \
+		uv run python mute_before_dawn.py 05:30 80
 
 play_sessao_da_tarde:
-	@if uv run python get_current_media_info.py | grep -qE '(TV Aparecida|"current_time": 0|"title": null)'; then \
-		flock --nonblock /tmp/rpi_sessao_da_tarde_$@.pid \
-			uv run python play_sessao_da_tarde.py; \
-		rm -f /tmp/rpi_sessao_da_tarde_$@.pid; \
-	else \
-		echo "TV Aparecida is not currently playing. Skipping play_sessao_da_tarde."; \
-	fi
+	flock --nonblock /tmp/rpi_$@.lock \
+		sh -c 'uv run rpimedia is_playing && uv run python play_sessao_da_tarde.py'
 
 play_viagens_brasil:
-	@if uv run python get_current_media_info.py | grep -qE '(TV Aparecida|"current_time": 0|"title": null)'; then \
-		flock --nonblock /tmp/rpi_viagens_brasil_$@.pid \
-			uv run rpimedia send_event keyboard_input b --max-enqueued-videos 0; \
-		rm -f /tmp/rpi_viagens_brasil_$@.pid; \
-	else \
-		echo "TV Aparecida is not currently playing. Skipping play_viagens_brasil."; \
-	fi
+	flock --nonblock /tmp/rpi_$@.lock \
+		sh -c 'uv run rpimedia is_playing && uv run rpimedia send_event keyboard_input b --max-enqueued-videos 0'
 
 play_musica:
-	@if uv run python get_current_media_info.py | grep -qE '(TV Aparecida|"current_time": 0|"title": null)'; then \
-		flock --nonblock /tmp/rpi_musica$@.pid \
-			uv run rpimedia send_event keyboard_input f --max-enqueued-videos 0; \
-		rm -f /tmp/rpi_musica$@.pid; \
-	else \
-		echo "TV Aparecida is not currently playing. Skipping play_musica."; \
-	fi
+	flock --nonblock /tmp/rpi_$@.lock \
+		sh -c 'uv run rpimedia is_playing && uv run rpimedia send_event keyboard_input f --max-enqueued-videos 0'
