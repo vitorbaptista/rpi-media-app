@@ -116,5 +116,35 @@ def send_event(
         exit(1)
 
 
+@cli.command(name="is_playing")
+def is_playing():
+    """Exit 0 if the configured device is playing, 1 otherwise.
+
+    Designed for shell composition in cron, e.g.:
+
+        rpimedia is_playing || rpimedia send_event keyboard_input c
+
+    Retry and timing semantics are device-specific and handled inside the
+    device implementation (Chromecast needs multiple attempts because
+    catt discovery is flaky; Fire TV does a single adb dumpsys call).
+    """
+
+    async def check():
+        config = _load_config()
+        device = devices.build_device(config)
+        try:
+            return await device.is_playing()
+        except Exception as e:
+            logging.warning(f"is_playing check failed: {e}")
+            return False
+
+    playing = asyncio.run(check())
+    if playing:
+        logging.info("device is playing")
+        exit(0)
+    logging.info("device is idle")
+    exit(1)
+
+
 if __name__ == "__main__":
     cli()

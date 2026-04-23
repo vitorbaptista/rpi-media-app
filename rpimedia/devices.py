@@ -6,6 +6,8 @@ import subprocess
 from abc import ABC
 from typing import Any, Dict, List, Optional, Tuple
 
+import catt.api
+
 logger = logging.getLogger(__name__)
 
 KNOWN_METHODS = frozenset({
@@ -64,10 +66,19 @@ class Device(ABC):
     async def pause(self) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("pause")
 
+    async def is_playing(self) -> bool:
+        logger.warning(
+            f"{self.__class__.__name__} does not support is_playing"
+        )
+        return False
+
 
 class ChromecastDevice(Device):
     VIDEO_MIN_EXECUTION_TIME: float = 120
     MAX_RETRY_ATTEMPTS: int = 3
+    IS_PLAYING_CHECKS: int = 2
+    IS_PLAYING_CHECK_INTERVAL: float = 60
+    IS_PLAYING_DISCOVERY_TIMEOUT: float = 10
 
     supports_enqueue = True
     supported_methods = frozenset({
@@ -113,6 +124,46 @@ class ChromecastDevice(Device):
     async def pause(self) -> Optional[asyncio.subprocess.Process]:
         logger.debug("Toggling play/pause")
         return await self._run(["catt", "play_toggle"])
+
+    async def is_playing(self) -> bool:
+        """Return True only if every attempt reports playback.
+
+        Conservative: one idle check is enough to conclude the device is idle,
+        which matches the behavior of the former chromecast_checker.
+        """
+        for attempt in range(self.IS_PLAYING_CHECKS):
+            if attempt > 0:
+                await asyncio.sleep(self.IS_PLAYING_CHECK_INTERVAL)
+            try:
+                playing = await asyncio.wait_for(
+                    asyncio.to_thread(self._is_playing_sync),
+                    timeout=self.IS_PLAYING_DISCOVERY_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("catt discovery timed out; treating as idle")
+                return False
+            if not playing:
+                return False
+        return True
+
+    def _is_playing_sync(self) -> bool:
+        discovered = catt.api.discover()
+        if not discovered:
+            logger.warning("no Chromecast discovered; treating as idle")
+            return False
+        device = discovered[0]
+        if not device.controller:
+            return False
+        device.controller.prep_info()
+        media_info = device.controller.media_info
+        if media_info is None:
+            return False
+        current_time = media_info.get("current_time")
+        title = media_info.get("title") or ""
+        if current_time is None:
+            # Live streams (e.g. TV Aparecida) have no current_time
+            return "ao vivo" in title.lower()
+        return current_time > 0
 
     async def _run(
         self,
@@ -226,6 +277,21 @@ class FireTVDevice(Device):
         logger.debug("Toggling play/pause")
         return await self._keyevent("KEYCODE_MEDIA_PLAY_PAUSE")
 
+    async def is_playing(self) -> bool:
+        """Return True if any active media session reports state=3 (PLAYING).
+
+        Uses `dumpsys media_session`. Prime Video, Netflix, and the Cobalt
+        YouTube app all publish their PlaybackState here, and the dump
+        identifies the "active" session via a `Media button receiver` block
+        whose session has the current playback state inline. A backgrounded
+        paused session reports state=2; buffering is state=6; only state=3
+        counts as actually playing.
+        """
+        out = await self._shell_capture("dumpsys media_session")
+        if out is None:
+            return False
+        return _active_session_is_playing(out)
+
     async def _start(
         self,
         component: str,
@@ -250,6 +316,33 @@ class FireTVDevice(Device):
 
     async def _keyevent(self, keycode: str) -> Optional[asyncio.subprocess.Process]:
         return await self._shell(f"input keyevent {shlex.quote(keycode)}")
+
+    async def _shell_capture(
+        self, remote_cmd: str, timeout: float = 5
+    ) -> Optional[str]:
+        """Run `adb shell <cmd>` and return stdout, or None on any failure."""
+        target = await self._ensure_connected()
+        if target is None:
+            return None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "adb", "-s", target, "shell", remote_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+        except OSError as e:
+            logger.warning(f"adb shell failed: {e}")
+            return None
+        try:
+            out_bytes, _ = await asyncio.wait_for(
+                proc.communicate(), timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"adb shell timed out after {timeout}s")
+            proc.kill()
+            await proc.wait()
+            return None
+        return out_bytes.decode(errors="replace")
 
     async def _shell(self, remote_cmd: str) -> Optional[asyncio.subprocess.Process]:
         """Run `adb shell <cmd>` and wait for completion.
@@ -342,6 +435,27 @@ async def _discover_firetv(timeout: float) -> Optional[Tuple[str, str]]:
         name = _extract_friendly_name(txt_blob) or fields[4]
         return name, ip
     return None
+
+
+_PLAYBACK_STATE_PATTERN = re.compile(r"state=PlaybackState\s*\{\s*state=(\d+)")
+
+
+def _active_session_is_playing(dumpsys_output: str) -> bool:
+    """Return True if any session in `dumpsys media_session` is state=3.
+
+    Android's MediaSession states: 0=none, 1=stopped, 2=paused, 3=playing,
+    4=fast-forwarding, 5=rewinding, 6=buffering, 7=error, 8=connecting.
+    Only 3 indicates actual playback.
+
+    Fire OS dumps every registered session; a backgrounded session's state
+    reflects its own last-known state, not a global "is anything playing"
+    signal. Still, a session reporting state=3 means SOMETHING is playing
+    right now (the session owner would have transitioned to 2/1 otherwise).
+    """
+    for match in _PLAYBACK_STATE_PATTERN.finditer(dumpsys_output):
+        if match.group(1) == "3":
+            return True
+    return False
 
 
 def _extract_friendly_name(txt_blob: str) -> Optional[str]:
