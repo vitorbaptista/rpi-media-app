@@ -78,7 +78,7 @@ class ChromecastDevice(Device):
     MAX_RETRY_ATTEMPTS: int = 3
     IS_PLAYING_CHECKS: int = 2
     IS_PLAYING_CHECK_INTERVAL: float = 60
-    IS_PLAYING_DISCOVERY_TIMEOUT: float = 10
+    IS_PLAYING_TIMEOUT: float = 15
 
     supports_enqueue = True
     supported_methods = frozenset({
@@ -137,10 +137,12 @@ class ChromecastDevice(Device):
             try:
                 playing = await asyncio.wait_for(
                     asyncio.to_thread(self._is_playing_sync),
-                    timeout=self.IS_PLAYING_DISCOVERY_TIMEOUT,
+                    timeout=self.IS_PLAYING_TIMEOUT,
                 )
             except asyncio.TimeoutError:
-                logger.warning("catt discovery timed out; treating as idle")
+                logger.warning(
+                    "catt discovery/prep_info timed out; treating as idle"
+                )
                 return False
             if not playing:
                 return False
@@ -217,6 +219,10 @@ class FireTVDevice(Device):
     NETFLIX_WAIT_SECONDS: float = 2
     NETFLIX_FLAGS: str = "0x10000020"
 
+    _MEDIA_PACKAGES: Tuple[str, ...] = (
+        PRIME_VIDEO_PACKAGE, YOUTUBE_PACKAGE, NETFLIX_PACKAGE,
+    )
+
     supports_enqueue = False
     supported_methods = frozenset({
         "youtube", "prime_video", "netflix",
@@ -278,19 +284,20 @@ class FireTVDevice(Device):
         return await self._keyevent("KEYCODE_MEDIA_PLAY_PAUSE")
 
     async def is_playing(self) -> bool:
-        """Return True if any active media session reports state=3 (PLAYING).
+        """Return True iff a media session reports state=3 AND a media app
+        is currently foregrounded.
 
-        Uses `dumpsys media_session`. Prime Video, Netflix, and the Cobalt
-        YouTube app all publish their PlaybackState here, and the dump
-        identifies the "active" session via a `Media button receiver` block
-        whose session has the current playback state inline. A backgrounded
-        paused session reports state=2; buffering is state=6; only state=3
-        counts as actually playing.
+        The foreground cross-check guards against stale PlaybackState entries
+        that a backgrounded app may leave behind — without it, navigating to
+        the launcher after watching could read as "playing" indefinitely.
         """
-        out = await self._shell_capture("dumpsys media_session")
-        if out is None:
+        sessions = await self._shell_capture("dumpsys media_session")
+        if sessions is None or not _active_session_is_playing(sessions):
             return False
-        return _active_session_is_playing(out)
+        activities = await self._shell_capture("dumpsys activity activities")
+        if activities is None:
+            return False
+        return _foreground_is_media_app(activities, self._MEDIA_PACKAGES)
 
     async def _start(
         self,
@@ -341,6 +348,11 @@ class FireTVDevice(Device):
             logger.warning(f"adb shell timed out after {timeout}s")
             proc.kill()
             await proc.wait()
+            return None
+        if proc.returncode != 0:
+            logger.warning(
+                f"adb shell exited {proc.returncode}; treating as no data"
+            )
             return None
         return out_bytes.decode(errors="replace")
 
@@ -437,7 +449,24 @@ async def _discover_firetv(timeout: float) -> Optional[Tuple[str, str]]:
     return None
 
 
-_PLAYBACK_STATE_PATTERN = re.compile(r"state=PlaybackState\s*\{\s*state=(\d+)")
+_PLAYBACK_STATE_PATTERN = re.compile(r"PlaybackState\s*\{\s*state=(\d+)")
+
+
+def _foreground_is_media_app(
+    dumpsys_activities_output: str, media_packages: Tuple[str, ...]
+) -> bool:
+    """Return True if the currently-resumed activity belongs to a media app.
+
+    Looks only at the `mResumedActivity` line rather than the full dump,
+    which otherwise lists every activity the system knows about (including
+    backgrounded ones).
+    """
+    for line in dumpsys_activities_output.splitlines():
+        # Anchor on the field name: substring containment would also match
+        # `mLastResumedActivity`, which can point at a stale prior activity.
+        if line.lstrip().startswith("mResumedActivity"):
+            return any(pkg in line for pkg in media_packages)
+    return False
 
 
 def _active_session_is_playing(dumpsys_output: str) -> bool:
@@ -447,10 +476,8 @@ def _active_session_is_playing(dumpsys_output: str) -> bool:
     4=fast-forwarding, 5=rewinding, 6=buffering, 7=error, 8=connecting.
     Only 3 indicates actual playback.
 
-    Fire OS dumps every registered session; a backgrounded session's state
-    reflects its own last-known state, not a global "is anything playing"
-    signal. Still, a session reporting state=3 means SOMETHING is playing
-    right now (the session owner would have transitioned to 2/1 otherwise).
+    Pattern is deliberately loose: different Fire OS versions format the
+    containing field with or without a leading `state=` prefix.
     """
     for match in _PLAYBACK_STATE_PATTERN.finditer(dumpsys_output):
         if match.group(1) == "3":

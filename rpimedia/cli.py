@@ -134,8 +134,8 @@ def is_playing():
         device = devices.build_device(config)
         try:
             return await device.is_playing()
-        except Exception as e:
-            logging.warning(f"is_playing check failed: {e}")
+        except Exception:
+            logging.exception("is_playing check failed; treating as idle")
             return False
 
     playing = asyncio.run(check())
