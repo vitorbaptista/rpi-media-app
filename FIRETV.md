@@ -132,7 +132,7 @@ Given a user-provided `primevideo.com/detail/<pvid>` share URL:
 
 ```bash
 # Current foregrounded activity
-adb shell dumpsys activity activities | grep -m1 mResumedActivity
+adb shell dumpsys activity activities | grep -m1 ResumedActivity
 
 # Probe which app handles a given URL
 adb shell cmd package query-activities -a android.intent.action.VIEW -d '<url>'

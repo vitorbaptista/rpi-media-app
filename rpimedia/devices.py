@@ -515,14 +515,14 @@ def _foreground_is_media_app(
 ) -> bool:
     """Return True if the currently-resumed activity belongs to a media app.
 
-    Looks only at the `mResumedActivity` line rather than the full dump,
+    Looks only at the `ResumedActivity` line rather than the full dump,
     which otherwise lists every activity the system knows about (including
     backgrounded ones).
     """
     for line in dumpsys_activities_output.splitlines():
         # Anchor on the field name: substring containment would also match
         # `mLastResumedActivity`, which can point at a stale prior activity.
-        if line.lstrip().startswith("mResumedActivity"):
+        if line.lstrip().startswith("ResumedActivity"):
             return any(pkg in line for pkg in media_packages)
     return False
 
