@@ -6,6 +6,7 @@ import pathlib
 import re
 import shlex
 import subprocess
+import time
 from abc import ABC
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 KNOWN_METHODS = frozenset({
     "youtube", "video", "url", "glob",
-    "prime_video", "netflix",
+    "prime_video", "netflix", "globoplay",
     "volume_up", "volume_down", "pause",
 })
 
@@ -29,6 +30,7 @@ _PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
     ),
     "netflix": re.compile(r"^\d+$"),
     "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
+    "globoplay": re.compile(r"^[a-z0-9-]{1,64}$"),
 }
 
 
@@ -53,6 +55,9 @@ class Device(ABC):
 
     async def play_netflix(self, netflix_id: str) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("play_netflix")
+
+    async def play_globoplay(self, slug: str) -> Optional[asyncio.subprocess.Process]:
+        return await self._unsupported("play_globoplay")
 
     async def play_url(self, url: str) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("play_url")
@@ -230,16 +235,32 @@ class FireTVDevice(Device):
     NETFLIX_WAIT_SECONDS: float = 2
     NETFLIX_FLAGS: str = "0x10000020"
 
+    GLOBOPLAY_PACKAGE: str = "com.globo.globotv"
+    GLOBOPLAY_CHOOSER_ACTIVITY: str = ".accountchoosertv.AccountChooserActivity"
+    ACTIVITY_WAIT_TIMEOUT: float = 20
+    # Free-tier accounts always show the profile chooser on cold launch with
+    # the (single) real profile pre-focused. DPAD_CENTER on the chooser drops
+    # us at MainActivity (losing the deep link target) — only a screen tap
+    # routes through to the channel hub. `input tap` uses display coordinates,
+    # not content coordinates: these are correct for a 1080p panel; verify
+    # with `adb shell wm size` if the device renegotiates to 4K.
+    GLOBOPLAY_PROFILE_TAP_X: int = 810
+    GLOBOPLAY_PROFILE_TAP_Y: int = 508
+    # The chooser activity is "resumed" before its content is rendered and
+    # tap-receptive. ~2s isn't always enough; 4s is reliable in practice.
+    GLOBOPLAY_CHOOSER_SETTLE_SECONDS: float = 4
+
     VLC_PACKAGE: str = "org.videolan.vlc"
     VLC_ACTIVITY: str = ".StartActivity"
 
     _MEDIA_PACKAGES: Tuple[str, ...] = (
         PRIME_VIDEO_PACKAGE, YOUTUBE_PACKAGE, NETFLIX_PACKAGE, VLC_PACKAGE,
+        GLOBOPLAY_PACKAGE,
     )
 
     supports_enqueue = False
     supported_methods = frozenset({
-        "youtube", "prime_video", "netflix", "video", "glob",
+        "youtube", "prime_video", "netflix", "globoplay", "video", "glob",
         "volume_up", "volume_down", "pause",
     })
 
@@ -286,6 +307,51 @@ class FireTVDevice(Device):
             flags=self.NETFLIX_FLAGS,
             extras=f"-e amzn_deeplink_data {shlex.quote(netflix_id)}",
         )
+
+    async def play_globoplay(self, slug: str) -> Optional[asyncio.subprocess.Process]:
+        """Open the Globoplay channel hub for `slug` (e.g. ``"futura"``,
+        ``"globo"``). The free-tier flow doesn't expose a single-button path
+        to the live stream — the hub's hero opens the global schedule, not
+        playback — so we stop at the hub and the viewer presses OK on the
+        remote to navigate from there.
+        """
+        logger.debug(f"Playing globoplay channel {slug}")
+        await self._force_stop(self.GLOBOPLAY_PACKAGE)
+        # Use `-p <package>` rather than `-n <component>`: pinning the splash
+        # activity explicitly causes the chooser to drop the deep-link target
+        # on dismiss, landing at MainActivity instead of the channel hub.
+        url = f"https://globoplay.globo.com/canais/{slug}/"
+        proc = await self._shell(
+            "am start -a android.intent.action.VIEW "
+            f"-d {shlex.quote(url)} -p {self.GLOBOPLAY_PACKAGE}"
+        )
+        if proc is None:
+            return None
+        # Splash → MainActivity → chooser takes ~8s on cold launch and varies
+        # with network. Poll instead of sleeping a fixed interval.
+        if await self._wait_for_activity(self.GLOBOPLAY_CHOOSER_ACTIVITY):
+            await asyncio.sleep(self.GLOBOPLAY_CHOOSER_SETTLE_SECONDS)
+            await self._tap(
+                self.GLOBOPLAY_PROFILE_TAP_X, self.GLOBOPLAY_PROFILE_TAP_Y
+            )
+        return proc
+
+    async def _wait_for_activity(
+        self, activity: str, timeout: float = ACTIVITY_WAIT_TIMEOUT,
+    ) -> bool:
+        """Block until the resumed activity's component name ends with
+        `activity` (e.g. ``".accountchoosertv.AccountChooserActivity"`` or
+        a fully-qualified ``"pkg/.path.Cls"``). Returns False on timeout.
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            out = await self._shell_capture("dumpsys activity activities")
+            component = _resumed_activity_component(out) if out else None
+            if component and component.endswith(activity):
+                return True
+            await asyncio.sleep(0.5)
+        logger.warning(f"timed out waiting for activity {activity!r}")
+        return False
 
     async def volume_up(self, n: int) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Volume up by {n}")
@@ -415,6 +481,9 @@ class FireTVDevice(Device):
     async def _keyevent(self, keycode: str) -> Optional[asyncio.subprocess.Process]:
         return await self._shell(f"input keyevent {shlex.quote(keycode)}")
 
+    async def _tap(self, x: int, y: int) -> Optional[asyncio.subprocess.Process]:
+        return await self._shell(f"input tap {int(x)} {int(y)}")
+
     async def _shell_capture(
         self, remote_cmd: str, timeout: float = 5
     ) -> Optional[str]:
@@ -541,6 +610,22 @@ async def _discover_firetv(timeout: float) -> Optional[Tuple[str, str]]:
 
 
 _PLAYBACK_STATE_PATTERN = re.compile(r"PlaybackState\s*\{\s*state=(\d+)")
+
+
+_RESUMED_COMPONENT_PATTERN = re.compile(r"\b([\w.]+/[\w.]+)\b")
+
+
+def _resumed_activity_component(dumpsys_activities_output: str) -> Optional[str]:
+    """Extract the resumed activity's ``pkg/.path.Cls`` component, or None.
+
+    Anchors on `ResumedActivity` rather than `mLastResumedActivity`, which
+    can point at a stale prior activity.
+    """
+    for line in dumpsys_activities_output.splitlines():
+        if line.lstrip().startswith("ResumedActivity"):
+            match = _RESUMED_COMPONENT_PATTERN.search(line)
+            return match.group(1) if match else None
+    return None
 
 
 def _foreground_is_media_app(

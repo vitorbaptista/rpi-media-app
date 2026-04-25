@@ -126,6 +126,8 @@ class Controller:
                 return await self.device.play_prime_video(params[0])
             case "netflix":
                 return await self.device.play_netflix(params[0])
+            case "globoplay":
+                return await self.device.play_globoplay(params[0])
             case "pause":
                 return await self.device.pause()
             case _:
