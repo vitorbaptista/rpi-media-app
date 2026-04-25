@@ -220,6 +220,26 @@ Warning: Activity not started, its current task has been brought to the front
 
 …and the new URL is **ignored** — Android just surfaces the existing task in whatever state it was. **Always `force-stop` the target package before re-launching with a new URL.** This applies to both firebat and the YouTube app (and presumably every other media app).
 
+## Keep-awake configuration
+
+For unattended playback (the device must resume on schedule without a remote press), disable sleep but keep the screensaver:
+
+```bash
+# Disable sleep (HDMI signal stays up; TV won't blank out)
+adb -s "$IP:5555" shell settings put secure sleep_timeout 0
+
+# Keep screensaver at default 5 min (or set explicitly)
+adb -s "$IP:5555" shell settings put system screen_off_timeout 300000
+```
+
+To fully disable the screensaver as well, use `2147460000` (max ~24 days) instead of `300000` — `0` does NOT work for `screen_off_timeout`.
+
+Defaults on this Cube: `sleep_timeout=1200000` (20 min), `screen_off_timeout=300000` (5 min). Both settings persist across reboots.
+
+Why split: `screen_off_timeout` triggers the Amazon screensaver overlay (device stays awake, TV stays on). `sleep_timeout` triggers actual suspend — HDMI drops, TV typically powers off on no-signal, and waking it back up requires a remote press or a (less reliable) CEC handshake. Disabling only `sleep_timeout` is enough for scheduled morning resume.
+
+In-app playback by Prime Video / Netflix / YouTube already holds a wake lock during active playback, so neither timer fires while a video is rolling. The timers only matter when the launcher is foregrounded with no input.
+
 ## Things not yet explored
 
 - `amzn://avod/...` and `amzn://pvde/...` internal URI paths — may support a direct playback form that bypasses the Play-button workaround.
