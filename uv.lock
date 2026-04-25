@@ -2,6 +2,10 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[options]
+exclude-newer = "2026-04-11T15:50:22.084743757Z"
+exclude-newer-span = "P14D"
+
 [[package]]
 name = "aioconsole"
 version = "0.8.2"
