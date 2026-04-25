@@ -78,6 +78,11 @@ class Device(ABC):
         )
         return False
 
+    async def resume(self) -> bool:
+        """Resume a paused media session in place. Return True iff resumed."""
+        await self._unsupported("resume")
+        return False
+
 
 class ChromecastDevice(Device):
     VIDEO_MIN_EXECUTION_TIME: float = 120
@@ -346,13 +351,41 @@ class FireTVDevice(Device):
         that a backgrounded app may leave behind — without it, navigating to
         the launcher after watching could read as "playing" indefinitely.
         """
-        sessions = await self._shell_capture("dumpsys media_session")
-        if sessions is None or not _active_session_is_playing(sessions):
+        return await self._session_state_with_foreground() == 3
+
+    async def resume(self) -> bool:
+        """Send MEDIA_PLAY iff the foreground media app is paused.
+
+        No-op when nothing is paused (idle, playing, or backgrounded session
+        with stale state), so safe to run unconditionally from cron alongside
+        is_playing.
+        """
+        if await self._session_state_with_foreground() != 2:
             return False
+        logger.info("foreground media app is paused; resuming")
+        await self._keyevent("KEYCODE_MEDIA_PLAY")
+        return True
+
+    async def _session_state_with_foreground(self) -> Optional[int]:
+        """Return the active session's playback state, or None if no media
+        app is foregrounded.
+
+        The foreground cross-check guards against stale PlaybackState entries
+        that a backgrounded app may leave behind — without it, navigating to
+        the launcher after watching could read as "playing" indefinitely.
+        """
+        sessions = await self._shell_capture("dumpsys media_session")
+        if sessions is None:
+            return None
+        state = _active_session_state(sessions)
+        if state is None:
+            return None
         activities = await self._shell_capture("dumpsys activity activities")
         if activities is None:
-            return False
-        return _foreground_is_media_app(activities, self._MEDIA_PACKAGES)
+            return None
+        if not _foreground_is_media_app(activities, self._MEDIA_PACKAGES):
+            return None
+        return state
 
     async def _start(
         self,
@@ -527,20 +560,47 @@ def _foreground_is_media_app(
     return False
 
 
-def _active_session_is_playing(dumpsys_output: str) -> bool:
-    """Return True if any session in `dumpsys media_session` is state=3.
+_MEDIA_BUTTON_SESSION_PATTERN = re.compile(
+    r"Media button session is (.+?) \(userId="
+)
+
+
+def _active_session_state(dumpsys_output: str) -> Optional[int]:
+    """Return the playback state of the media-button session.
 
     Android's MediaSession states: 0=none, 1=stopped, 2=paused, 3=playing,
     4=fast-forwarding, 5=rewinding, 6=buffering, 7=error, 8=connecting.
-    Only 3 indicates actual playback.
 
-    Pattern is deliberately loose: different Fire OS versions format the
-    containing field with or without a leading `state=` prefix.
+    `dumpsys media_session` lists every session known to the framework —
+    Bluetooth, Alexa, the TTS player, and stale entries from previously-run
+    media apps. Some of those report state=3 indefinitely even though they're
+    not actually playing. The "Media button session is X" line names the one
+    session that owns the media-button receiver, which is always the
+    foreground app's session; reading its state is what we want.
     """
-    for match in _PLAYBACK_STATE_PATTERN.finditer(dumpsys_output):
-        if match.group(1) == "3":
-            return True
-    return False
+    active_match = _MEDIA_BUTTON_SESSION_PATTERN.search(dumpsys_output)
+    if active_match is None:
+        return None
+    active_id = active_match.group(1)
+    # The Sessions Stack header for this session is "<tag> <pkg>/<tag>
+    # (userId=N)", so we look for `<active_id> (userId=` *after* the line
+    # that named the session. The first state=PlaybackState following that
+    # header is the active session's state — every session block emits its
+    # state line before any nested sub-sections.
+    block_marker = f"{active_id} (userId="
+    after_announcement = dumpsys_output[active_match.end():]
+    block_idx = after_announcement.find(block_marker)
+    if block_idx < 0:
+        logger.debug(
+            f"media_session announced active={active_id!r} but no matching "
+            "session block found; dumpsys format may have drifted"
+        )
+        return None
+    block_text = after_announcement[block_idx:]
+    state_match = _PLAYBACK_STATE_PATTERN.search(block_text)
+    if state_match is None:
+        return None
+    return int(state_match.group(1))
 
 
 def _extract_friendly_name(txt_blob: str) -> Optional[str]:

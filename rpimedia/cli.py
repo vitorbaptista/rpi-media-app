@@ -146,5 +146,30 @@ def is_playing():
     exit(1)
 
 
+@cli.command(name="resume")
+def resume():
+    """Resume a paused media session in place; no-op otherwise.
+
+    Designed to run before is_playing in cron, e.g.:
+
+        rpimedia resume
+        rpimedia is_playing || rpimedia send_event keyboard_input c
+
+    If the foreground media app is paused, sends MEDIA_PLAY. Otherwise
+    (playing, idle, launcher in front, no device, etc.) does nothing and
+    exits 0 — the next is_playing check then drives the existing fallback.
+    """
+
+    async def run():
+        config = _load_config()
+        device = devices.build_device(config)
+        try:
+            await device.resume()
+        except Exception:
+            logging.exception("resume failed")
+
+    asyncio.run(run())
+
+
 if __name__ == "__main__":
     cli()
