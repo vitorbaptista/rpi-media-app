@@ -210,6 +210,42 @@ Other details:
 - The Netflix ID in the URL path is the public `netflix.com/watch/<id>` ID — no translation step needed.
 - Requires a signed-in Netflix account with an available profile; title must be available in the account's region.
 
+## Globoplay
+
+Preinstalled Globoplay app:
+
+- Package: `com.globo.globotv`
+- Channel deep link: `https://globoplay.globo.com/canais/<slug>/` (slugs include `globo`, `futura`, `globonews`, `gnt`, `multishow`, `sportv`, `bis`, `combate`, `gloob`, `gloobinho`, `megapix`, `telecine`, `universal`, `canal-brasil`, `canal-off`, `ge-tv`, `globoplay-novelas`, `modo-viagem`, `premiere`).
+
+### Profile chooser intercepts the deep link
+
+On free-tier accounts, every cold launch routes through `AccountChooserActivity`, even when a single profile exists (the second tile is a "Criar perfil" upsell). Two specific quirks make the obvious recipe fail:
+
+- **Pinning the splash component drops the deep link.** `am start -n com.globo.globotv/.splashtv.SplashActivity -d <url>` reaches the chooser, but dismissing the chooser then lands on `MainActivity` instead of the channel hub. Use `-p <package>` (or no package at all), letting the system resolve the URL.
+- **DPAD_CENTER on the chooser also drops the deep link** (lands on MainActivity). Only a screen tap routes through. The chooser's content isn't tap-receptive immediately when the activity becomes "resumed" — wait ~4s.
+
+### Working recipe (lands on the channel hub)
+
+```bash
+IP=192.168.15.174
+SLUG=futura
+
+adb -s "$IP:5555" shell am force-stop com.globo.globotv
+adb -s "$IP:5555" shell am start \
+  -a android.intent.action.VIEW \
+  -d "https://globoplay.globo.com/canais/$SLUG/" \
+  -p com.globo.globotv
+
+# Wait ~10s for splash → MainActivity → AccountChooserActivity, then ~4s
+# more for the chooser to render and accept input.
+sleep 14
+adb -s "$IP:5555" shell input tap 810 508   # focused profile, 1080p coords
+```
+
+### Live playback is one button press away
+
+The deep link lands on `CategoryDetailsPageActivity` with the live-now hero focused, but pressing OK there opens the global schedule, not playback. There's no public deep-link path that goes straight to live on the free tier — the viewer presses OK on the remote to navigate from the hub.
+
 ### Critical gotcha: "brought to the front"
 
 If the target app is already running in the background, `am start` without a prior `force-stop` will print:
