@@ -1,7 +1,7 @@
 [remote.bindings]
 3 = "volume_up"
 1 = "volume_down"
-2 = "pause"
+2 = "toggle_hearing_aids"
 c = "b1"
 f = "b2"
 b = "b3"
@@ -17,9 +17,9 @@ params = "5"
 method = "volume_down"
 params = "5"
 
-[remote.keys.pause]
-method = "pause"
-params = []
+[remote.keys.toggle_hearing_aids]
+method = "set_hearing_aids"
+params = ["toggle"]
 
 [remote.keys.b1]
 method = "youtube"

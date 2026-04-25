@@ -130,6 +130,20 @@ class Controller:
                 return await self.device.play_globoplay(params[0])
             case "pause":
                 return await self.device.pause()
+            case "set_hearing_aids":
+                assert len(params) == 1, (
+                    "set_hearing_aids must have exactly one parameter "
+                    "(on|off|toggle)"
+                )
+                # Shape is enforced lowercase by _PARAM_VALIDATORS.
+                arg = params[0]
+                if arg == "toggle":
+                    currently_on = await self.device.is_hearing_aid_connected()
+                    enabled = not currently_on
+                else:
+                    enabled = arg == "on"
+                await self.device.set_hearing_aids(enabled)
+                return None
             case _:
                 logger.debug(f"Unknown method: {method}")
                 return None

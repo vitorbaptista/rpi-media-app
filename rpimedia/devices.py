@@ -7,6 +7,7 @@ import re
 import shlex
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 from abc import ABC
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
@@ -21,6 +22,7 @@ KNOWN_METHODS = frozenset({
     "youtube", "video", "url", "glob",
     "prime_video", "netflix", "globoplay",
     "volume_up", "volume_down", "pause",
+    "set_hearing_aids",
 })
 
 _PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
@@ -31,6 +33,7 @@ _PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
     "netflix": re.compile(r"^\d+$"),
     "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
     "globoplay": re.compile(r"^[a-z0-9-]{1,64}$"),
+    "set_hearing_aids": re.compile(r"^(on|off|toggle)$"),
 }
 
 
@@ -86,6 +89,18 @@ class Device(ABC):
     async def resume(self) -> bool:
         """Resume a paused media session in place. Return True iff resumed."""
         await self._unsupported("resume")
+        return False
+
+    async def set_hearing_aids(self, enabled: bool) -> bool:
+        """Connect (enabled=True) or disconnect (False) paired hearing aids.
+
+        Returns True iff the requested state was reached.
+        """
+        await self._unsupported("set_hearing_aids")
+        return False
+
+    async def is_hearing_aid_connected(self) -> bool:
+        """Return True iff a hearing aid is currently connected."""
         return False
 
 
@@ -267,10 +282,35 @@ class FireTVDevice(Device):
         GLOBOPLAY_PACKAGE,
     )
 
+    HEARING_AID_PACKAGE: str = "com.amazon.hearingaid"
+    HEARING_AID_ACTIVITY: str = ".ui.HearingAidMainActivity"
+    HEARING_AID_DEVICE_LIST_ID: str = (
+        "com.amazon.hearingaid:id/hearing_aid_gridview"
+    )
+    HEARING_AID_DETAIL_LIST_ID: str = (
+        "com.amazon.hearingaid:id/hearing_aid_settings_gridview"
+    )
+    HEARING_AID_GRID_ITEM_ID: str = (
+        "com.amazon.hearingaid:id/gridview_item_title"
+    )
+    # 0=Volume, 1=Mute, 2=Connect/Disconnect, 3=Unpair. Position is stable
+    # across pt_BR and en; the toggle's *text* changes (Conectar /
+    # Desconectar), so we match by resource-id + position, not by text.
+    HEARING_AID_TOGGLE_INDEX: int = 2
+    HEARING_AID_UI_TIMEOUT: float = 6.0
+    HEARING_AID_UI_POLL_INTERVAL: float = 0.5
+    HEARING_AID_DISCONNECT_TIMEOUT: float = 8.0
+    # The activity paints its content_pane before its FocusManager has
+    # latched onto the device row; a DPAD_CENTER fired in that window
+    # gets dropped. Empirically ~1s is sufficient.
+    HEARING_AID_FOCUS_SETTLE_SECONDS: float = 1.0
+    HEARING_AID_DRILL_ATTEMPTS: int = 3
+
     supports_enqueue = False
     supported_methods = frozenset({
         "youtube", "prime_video", "netflix", "globoplay", "video", "glob",
         "volume_up", "volume_down", "pause",
+        "set_hearing_aids",
     })
 
     def __init__(
@@ -386,6 +426,163 @@ class FireTVDevice(Device):
     async def pause(self) -> Optional[asyncio.subprocess.Process]:
         logger.debug("Toggling play/pause")
         return await self._keyevent("KEYCODE_MEDIA_PLAY_PAUSE")
+
+    async def is_hearing_aid_connected(self) -> bool:
+        """Return True iff a hearing aid is currently connected.
+
+        Reads the AOSP-defined Settings.Secure flag set by the
+        BluetoothHearingAid profile service when the ASHA ACL link
+        completes.
+        """
+        out = await self._shell_capture(
+            "settings get secure hearing_aid_connected"
+        )
+        return out is not None and out.strip() == "1"
+
+    async def set_hearing_aids(self, enabled: bool) -> bool:
+        """Connect or disconnect paired hearing aids.
+
+        Stock Fire OS blocks every shell-side path to a profile
+        disconnect: BLUETOOTH_PRIVILEGED is signature|privileged and not
+        granted to the shell uid; ``svc bluetooth disable`` is killed by
+        the sandbox; ``service call bluetooth_manager`` enable/disable
+        return SecurityException; ``am force-stop com.android.bluetooth``
+        is a no-op against the protected BT process. The Amazon
+        ``HearingAidUI`` Settings activity, however, runs as a privileged
+        process and *can* invoke the privileged
+        ``BluetoothHearingAid.{connect,disconnect}`` API on our behalf,
+        so we drive it via uiautomator + key/tap events.
+
+        For the disable transition we verify the post-tap state via
+        ``hearing_aid_connected`` and return False if the disconnect
+        didn't land. For enable we trust the tap: it sets the device's
+        connection priority to AUTO_CONNECT and initiates the ACL, but
+        whether the link actually completes depends on the hearing aid
+        being powered on and in range, which we don't control.
+        """
+        target = await self._ensure_connected()
+        if target is None:
+            return False
+
+        logger.info(f"set_hearing_aids({enabled})")
+
+        # The UI's connect/disconnect grid item is a *toggle* whose
+        # direction depends on the live connection state ("Conectar" when
+        # disconnected, "Desconectar" when connected). If the live state
+        # already matches the request, tapping would toggle the wrong
+        # way — so check first and short-circuit.
+        if (await self.is_hearing_aid_connected()) == enabled:
+            logger.info(
+                f"hearing aid already in desired state ({enabled}); skipping"
+            )
+            return True
+
+        # ``-S`` force-stops then starts, so we always land on the
+        # device-list pane regardless of any cached navigation state.
+        proc = await self._shell(
+            f"am start -S -n "
+            f"{self.HEARING_AID_PACKAGE}/{self.HEARING_AID_ACTIVITY}"
+        )
+        if proc is None or proc.returncode != 0:
+            logger.warning("failed to launch HearingAidMainActivity")
+            return False
+
+        if not await self._wait_for_ui_node(self.HEARING_AID_DEVICE_LIST_ID):
+            logger.warning("hearing-aid device list did not render")
+            await self._keyevent("KEYCODE_HOME")
+            return False
+
+        # The single paired hearing-aid row is auto-focused; drill in.
+        # Retry on failure: a DPAD_CENTER fired before the FocusManager
+        # has latched onto the row gets dropped, leaving us on the
+        # device list with no detail page in sight.
+        detail_xml: Optional[str] = None
+        for attempt in range(self.HEARING_AID_DRILL_ATTEMPTS):
+            await asyncio.sleep(self.HEARING_AID_FOCUS_SETTLE_SECONDS)
+            await self._keyevent("KEYCODE_DPAD_CENTER")
+            detail_xml = await self._wait_for_ui_xml(
+                self.HEARING_AID_DETAIL_LIST_ID
+            )
+            if detail_xml is not None:
+                break
+            logger.info(
+                f"hearing-aid drill-in attempt {attempt + 1} did not "
+                "land on detail; retrying"
+            )
+        if detail_xml is None:
+            logger.warning("hearing-aid device detail did not render")
+            await self._keyevent("KEYCODE_HOME")
+            return False
+
+        bounds = _nth_node_bounds(
+            detail_xml,
+            self.HEARING_AID_GRID_ITEM_ID,
+            self.HEARING_AID_TOGGLE_INDEX,
+        )
+        if bounds is None:
+            logger.warning(
+                "hearing-aid connect/disconnect button not found in UI dump"
+            )
+            await self._keyevent("KEYCODE_HOME")
+            return False
+
+        cx = (bounds[0] + bounds[2]) // 2
+        cy = (bounds[1] + bounds[3]) // 2
+        await self._tap(cx, cy)
+
+        success = True
+        if not enabled:
+            success = await self._wait_for_hearing_aid_state(
+                expected=False,
+                timeout=self.HEARING_AID_DISCONNECT_TIMEOUT,
+            )
+            if not success:
+                logger.warning(
+                    "hearing aid did not disconnect within "
+                    f"{self.HEARING_AID_DISCONNECT_TIMEOUT}s"
+                )
+
+        await self._keyevent("KEYCODE_HOME")
+        return success
+
+    async def _dump_ui(self) -> Optional[str]:
+        """Capture the current uiautomator hierarchy as XML, or None.
+
+        Uses ``$$`` so concurrent shell invocations don't clobber each
+        other's dump file — `flock` already prevents this from cron, but
+        the cost of per-shell uniqueness is one shell expansion.
+        """
+        return await self._shell_capture(
+            "f=/sdcard/ui_$$.xml; "
+            "uiautomator dump \"$f\" >/dev/null 2>&1 "
+            "&& cat \"$f\"; rm -f \"$f\"",
+            timeout=8,
+        )
+
+    async def _wait_for_ui_node(self, resource_id: str) -> bool:
+        return await self._wait_for_ui_xml(resource_id) is not None
+
+    async def _wait_for_ui_xml(self, resource_id: str) -> Optional[str]:
+        deadline = (
+            asyncio.get_event_loop().time() + self.HEARING_AID_UI_TIMEOUT
+        )
+        needle = f'resource-id="{resource_id}"'
+        while asyncio.get_event_loop().time() < deadline:
+            xml = await self._dump_ui()
+            if xml and needle in xml:
+                return xml
+            await asyncio.sleep(self.HEARING_AID_UI_POLL_INTERVAL)
+        return None
+
+    async def _wait_for_hearing_aid_state(
+        self, expected: bool, timeout: float
+    ) -> bool:
+        deadline = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < deadline:
+            if (await self.is_hearing_aid_connected()) == expected:
+                return True
+            await asyncio.sleep(self.HEARING_AID_UI_POLL_INTERVAL)
+        return False
 
     async def play_video(self, path: str) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing local video {path}")
@@ -623,6 +820,31 @@ async def _discover_firetv(timeout: float) -> Optional[Tuple[str, str]]:
         name = _extract_friendly_name(txt_blob) or fields[4]
         return name, ip
     return None
+
+
+_UI_BOUNDS_PATTERN = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
+
+
+def _nth_node_bounds(
+    ui_xml: str, resource_id: str, n: int
+) -> Optional[Tuple[int, int, int, int]]:
+    """Return the (x1, y1, x2, y2) bounds of the nth node (0-indexed)
+    matching ``resource_id`` in a uiautomator dump, or None.
+    """
+    try:
+        root = ET.fromstring(ui_xml)
+    except ET.ParseError:
+        return None
+    matches = []
+    for node in root.iter("node"):
+        if node.attrib.get("resource-id") != resource_id:
+            continue
+        m = _UI_BOUNDS_PATTERN.match(node.attrib.get("bounds", ""))
+        if m:
+            matches.append(tuple(int(g) for g in m.groups()))
+    if n >= len(matches):
+        return None
+    return matches[n]
 
 
 _PLAYBACK_STATE_PATTERN = re.compile(r"PlaybackState\s*\{\s*state=(\d+)")

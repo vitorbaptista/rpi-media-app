@@ -6,3 +6,4 @@
 0 11,18 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_musica") 2>&1 | systemd-cat -t rpimedia-cron
 0 10,16 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_sessao_da_tarde") 2>&1 | systemd-cat -t rpimedia-cron
 0 15 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_viagens_brasil") 2>&1 | systemd-cat -t rpimedia-cron
+*/3 * * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make hearing_aids_schedule") 2>&1 | systemd-cat -t rpimedia-cron

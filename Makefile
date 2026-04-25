@@ -1,4 +1,4 @@
-.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing play_sessao_da_tarde play_musica mute_before_dawn
+.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing play_sessao_da_tarde play_musica mute_before_dawn hearing_aids_schedule
 
 install:
 	uv sync
@@ -49,3 +49,10 @@ play_viagens_brasil:
 play_musica:
 	flock --nonblock /tmp/rpi_$@.lock \
 		sh -c 'uv run rpimedia is_playing && uv run rpimedia send_event keyboard_input f --max-enqueued-videos 0'
+
+hearing_aids_schedule:
+	# Connect hearing aids 05:00–11:00, disconnect otherwise. Acts only
+	# on transitions, so frequent cron ticks are safe (and provide retry
+	# on transient failure).
+	flock --nonblock /tmp/rpi_$@.lock \
+		uv run rpimedia hearing_aids_schedule 05:00 11:00

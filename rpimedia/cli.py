@@ -1,8 +1,11 @@
 # Write a CLI using Click to configure the media controller
 
 import asyncio
+import os
 import pathlib
+import sys
 import tomllib
+from datetime import datetime, time as dtime
 import click
 import logging
 
@@ -169,6 +172,115 @@ def resume():
             logging.exception("resume failed")
 
     asyncio.run(run())
+
+
+@cli.command(name="hearing_aids_schedule")
+@click.argument("window_start")
+@click.argument("window_end")
+def hearing_aids_schedule(window_start: str, window_end: str):
+    """Connect/disconnect hearing aids on a daily window.
+
+    Designed for cron: runs frequently and acts only on a transition into
+    or out of the [WINDOW_START, WINDOW_END) interval (HH:MM, 24h).
+    Exception: the very first run on a new install bootstraps its state
+    file from the live hearing-aid status, then immediately enforces the
+    schedule against it — so installing during the off-window with the
+    aid still connected will trigger one disconnect.
+
+    The last applied state is persisted in
+    ``$XDG_STATE_HOME/rpimedia/hearing_aids.state`` (default
+    ``~/.local/state/rpimedia/...``); transient adb/UI failures don't
+    update it, so the next cron tick retries automatically.
+
+    Example::
+
+        rpimedia hearing_aids_schedule 05:00 11:00
+    """
+    try:
+        start = _parse_hhmm(window_start)
+        end = _parse_hhmm(window_end)
+    except ValueError as e:
+        raise click.BadParameter(str(e))
+
+    state_path = _hearing_aids_state_path()
+    now = datetime.now().time()
+    desired = "on" if _in_window(now, start, end) else "off"
+
+    async def run():
+        config = _load_config()
+        device = devices.build_device(config)
+
+        last = _read_state(state_path)
+        if last is None:
+            # Bootstrap: trust the live state on first run so we don't
+            # interrupt the user with a UI flash to set state to what's
+            # already true.
+            actual_on = await device.is_hearing_aid_connected()
+            last = "on" if actual_on else "off"
+            _write_state(state_path, last)
+            logging.info(f"hearing_aids_schedule: bootstrapped state={last}")
+
+        if desired == last:
+            logging.info(
+                f"hearing_aids_schedule: state unchanged ({desired}); skipping"
+            )
+            return True
+
+        logging.info(
+            f"hearing_aids_schedule: transition {last} -> {desired}"
+        )
+        success = await device.set_hearing_aids(desired == "on")
+        if not success:
+            logging.error(
+                f"hearing_aids_schedule: failed to apply {desired}; "
+                "leaving state file unchanged so cron retries"
+            )
+            return False
+        _write_state(state_path, desired)
+        logging.info(f"hearing_aids_schedule: applied {desired}")
+        return True
+
+    ok = asyncio.run(run())
+    if not ok:
+        sys.exit(1)
+
+
+def _parse_hhmm(s: str) -> dtime:
+    try:
+        return datetime.strptime(s, "%H:%M").time()
+    except ValueError:
+        raise ValueError(
+            f"invalid time {s!r}: expected HH:MM in 24-hour format"
+        )
+
+
+def _in_window(now: dtime, start: dtime, end: dtime) -> bool:
+    if start <= end:
+        return start <= now < end
+    # Window crosses midnight (e.g. 22:00 → 06:00).
+    return now >= start or now < end
+
+
+def _hearing_aids_state_path() -> pathlib.Path:
+    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser(
+        "~/.local/state"
+    )
+    return pathlib.Path(base) / "rpimedia" / "hearing_aids.state"
+
+
+def _read_state(path: pathlib.Path) -> str | None:
+    try:
+        text = path.read_text().strip()
+    except FileNotFoundError:
+        return None
+    return text or None
+
+
+def _write_state(path: pathlib.Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(value)
+    tmp.replace(path)
 
 
 if __name__ == "__main__":
