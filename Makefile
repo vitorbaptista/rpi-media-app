@@ -29,9 +29,9 @@ tail_logs:
 	journalctl -u rpimedia.service -f
 
 ensure_video_is_playing:
-	# Toca TV Aparecida se nada estiver tocando
+	# Resume se algum app estiver pausado, senão toca TV Aparecida
 	flock --nonblock /tmp/rpi_$@.lock \
-		sh -c 'uv run rpimedia is_playing || uv run rpimedia send_event keyboard_input c'
+		sh -c 'uv run rpimedia resume; uv run rpimedia is_playing || uv run rpimedia send_event keyboard_input c'
 
 mute_before_dawn:
 	# Volume zero pelas manhãs. Sono é importante.
