@@ -177,7 +177,7 @@ rpi-media-app/
 | `youtube` | Toca vídeo(s) do YouTube | Lista de IDs (11 chars) | ✅ | ✅ (sem enqueue) |
 | `prime_video` | Toca título do Prime Video | GTI (`amzn1.dv.gti.<uuid>`) | ❌ | ✅ |
 | `netflix` | Toca título do Netflix | ID numérico | ❌ | ✅ |
-| `globoplay` | Abre o hub do canal no Globoplay | Slug do canal (ex: `futura`, `globo`) | ❌ | ✅ (1) |
+| `globoplay` | Abre o hub do canal no Globoplay | Slug do canal: `globo` ou `futura` (1) | ❌ | ✅ (2) |
 | `video` | Toca um vídeo local | Caminho do arquivo | ✅ | ❌ |
 | `glob` | Toca vídeo aleatório de um padrão | Padrão glob (ex: `data/**/*.mp4`) | ✅ | ❌ |
 | `url` | Toca qualquer URL | URL completa | ✅ | ❌ |
@@ -185,7 +185,9 @@ rpi-media-app/
 | `volume_down` | Diminui volume | Quantidade | ✅ | ✅ |
 | `pause` | Pausa/retoma reprodução | - | ✅ | ✅ |
 
-(1) `globoplay` para na página do canal — o fluxo gratuito não expõe um deep link para reprodução ao vivo, então o telespectador pressiona OK no controle para entrar.
+(1) Outros slugs (`globonews`, `gnt`, `multishow`, `sportv`, etc.) só funcionam com assinatura paga.
+
+(2) `globoplay` para na página do canal — o fluxo gratuito não expõe um deep link para reprodução ao vivo, então o telespectador pressiona OK no controle para entrar.
 
 Métodos incompatíveis com o dispositivo escolhido são rejeitados na inicialização do serviço com uma mensagem clara. Para detalhes do Fire TV (incluindo como obter GTIs do Prime Video), veja [FIRETV.md](FIRETV.md).
 

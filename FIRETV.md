@@ -215,7 +215,7 @@ Other details:
 Preinstalled Globoplay app:
 
 - Package: `com.globo.globotv`
-- Channel deep link: `https://globoplay.globo.com/canais/<slug>/` (slugs include `globo`, `futura`, `globonews`, `gnt`, `multishow`, `sportv`, `bis`, `combate`, `gloob`, `gloobinho`, `megapix`, `telecine`, `universal`, `canal-brasil`, `canal-off`, `ge-tv`, `globoplay-novelas`, `modo-viagem`, `premiere`).
+- Channel deep link: `https://globoplay.globo.com/canais/<slug>/`. On the free tier the only live channels available are `globo` (TV Globo) and `futura` (Canal Futura) — the other slugs the app advertises (`globonews`, `gnt`, `multishow`, `sportv`, `bis`, `combate`, `gloob`, `gloobinho`, `megapix`, `telecine`, `universal`, `canal-brasil`, `canal-off`, `ge-tv`, `globoplay-novelas`, `modo-viagem`, `premiere`) require a paid subscription.
 
 ### Profile chooser intercepts the deep link
 
