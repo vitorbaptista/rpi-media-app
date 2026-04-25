@@ -74,12 +74,9 @@ params = [
     "yKt9stIuZ_c",  # Rio de Janeiro
     "sjwffBCv8eM",  # Da Baía de Guanabara à Serra de Ibitipoca
     "b2XXDW0ZmX8",  # Serra do Espinhaço
-    "s_f0m7dCfNw"   # De Ouro Branco à Serra da Canastra
-]
+    "s_f0m7dCfNw",  # De Ouro Branco à Serra da Canastra
 
-[remote.keys.b4]
-method = "youtube"
-params = [
+    # Viagens pelo mundo
     "6LPIXiguKaQ",  # RRuas em Lisboa e Beja
     "Sq0L09PfBuA",  # RRuas em Mostar
     "fspUhP4a6bM",  # RRuas em Edimburgo
@@ -92,6 +89,12 @@ params = [
     "TsYYnL1WvRU",  # RRuas em Capadócia
     "D_AVORG9lZg",  # Rolê Família - Marrakesh
     "-0LS4X9CPpo"   # Rolê Família - Saara
+]
+
+[remote.keys.b4]
+method = "globoplay"
+params = [
+    "futura"
 ]
 
 [remote.keys.b5]

@@ -237,6 +237,7 @@ class FireTVDevice(Device):
 
     GLOBOPLAY_PACKAGE: str = "com.globo.globotv"
     GLOBOPLAY_CHOOSER_ACTIVITY: str = ".accountchoosertv.AccountChooserActivity"
+    GLOBOPLAY_HUB_ACTIVITY: str = ".categoriesdetailspagetv.CategoryDetailsPageActivity"
     ACTIVITY_WAIT_TIMEOUT: float = 20
     # Free-tier accounts always show the profile chooser on cold launch with
     # the (single) real profile pre-focused. DPAD_CENTER on the chooser drops
@@ -249,6 +250,14 @@ class FireTVDevice(Device):
     # The chooser activity is "resumed" before its content is rendered and
     # tap-receptive. ~2s isn't always enough; 4s is reliable in practice.
     GLOBOPLAY_CHOOSER_SETTLE_SECONDS: float = 4
+    # The hub's "Agora na TV" hero starts playback. DPAD_CENTER on this view
+    # is not wired reliably (gets dropped or routes to a no-op listener), but
+    # an `input tap` at the hero's geometric center triggers playback every
+    # time. Coords are the center of the hero card (bounds [140,184][1780,886]
+    # on a 1080p panel).
+    GLOBOPLAY_HUB_HERO_TAP_X: int = 960
+    GLOBOPLAY_HUB_HERO_TAP_Y: int = 535
+    GLOBOPLAY_HUB_SETTLE_SECONDS: float = 3
 
     VLC_PACKAGE: str = "org.videolan.vlc"
     VLC_ACTIVITY: str = ".StartActivity"
@@ -309,11 +318,11 @@ class FireTVDevice(Device):
         )
 
     async def play_globoplay(self, slug: str) -> Optional[asyncio.subprocess.Process]:
-        """Open the Globoplay channel hub for `slug` (e.g. ``"futura"``,
-        ``"globo"``). The free-tier flow doesn't expose a single-button path
-        to the live stream — the hub's hero opens the global schedule, not
-        playback — so we stop at the hub and the viewer presses OK on the
-        remote to navigate from there.
+        """Open the Globoplay live broadcast for `slug` (e.g. ``"futura"``,
+        ``"globo"``). The free-tier flow has no single-button path to live, so
+        we chain: deep link → tap profile chooser → DPAD_CENTER on the hub's
+        "Agora na TV" hero, which hands off to MainActivity's broadcast
+        fragment with the live stream playing.
         """
         logger.debug(f"Playing globoplay channel {slug}")
         await self._force_stop(self.GLOBOPLAY_PACKAGE)
@@ -329,11 +338,18 @@ class FireTVDevice(Device):
             return None
         # Splash → MainActivity → chooser takes ~8s on cold launch and varies
         # with network. Poll instead of sleeping a fixed interval.
-        if await self._wait_for_activity(self.GLOBOPLAY_CHOOSER_ACTIVITY):
-            await asyncio.sleep(self.GLOBOPLAY_CHOOSER_SETTLE_SECONDS)
-            await self._tap(
-                self.GLOBOPLAY_PROFILE_TAP_X, self.GLOBOPLAY_PROFILE_TAP_Y
-            )
+        if not await self._wait_for_activity(self.GLOBOPLAY_CHOOSER_ACTIVITY):
+            return proc
+        await asyncio.sleep(self.GLOBOPLAY_CHOOSER_SETTLE_SECONDS)
+        await self._tap(
+            self.GLOBOPLAY_PROFILE_TAP_X, self.GLOBOPLAY_PROFILE_TAP_Y
+        )
+        if not await self._wait_for_activity(self.GLOBOPLAY_HUB_ACTIVITY):
+            return proc
+        await asyncio.sleep(self.GLOBOPLAY_HUB_SETTLE_SECONDS)
+        await self._tap(
+            self.GLOBOPLAY_HUB_HERO_TAP_X, self.GLOBOPLAY_HUB_HERO_TAP_Y
+        )
         return proc
 
     async def _wait_for_activity(
