@@ -18,12 +18,21 @@ from . import httpserver
 
 logger = logging.getLogger(__name__)
 
-KNOWN_METHODS = frozenset({
-    "youtube", "video", "url", "glob",
-    "prime_video", "netflix", "globoplay",
-    "volume_up", "volume_down", "pause",
-    "set_hearing_aids",
-})
+KNOWN_METHODS = frozenset(
+    {
+        "youtube",
+        "video",
+        "url",
+        "glob",
+        "prime_video",
+        "netflix",
+        "globoplay",
+        "volume_up",
+        "volume_down",
+        "pause",
+        "set_hearing_aids",
+    }
+)
 
 _PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
     "prime_video": re.compile(
@@ -42,21 +51,23 @@ class Device(ABC):
     supported_methods: frozenset[str] = frozenset()
 
     async def _unsupported(self, method: str) -> None:
-        logger.warning(
-            f"{self.__class__.__name__} does not support {method}"
-        )
+        logger.warning(f"{self.__class__.__name__} does not support {method}")
         return None
 
     async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("play_youtube")
 
-    async def enqueue_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+    async def enqueue_youtube(
+        self, video_id: str
+    ) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("enqueue_youtube")
 
     async def play_prime_video(self, gti: str) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("play_prime_video")
 
-    async def play_netflix(self, netflix_id: str) -> Optional[asyncio.subprocess.Process]:
+    async def play_netflix(
+        self, netflix_id: str
+    ) -> Optional[asyncio.subprocess.Process]:
         return await self._unsupported("play_netflix")
 
     async def play_globoplay(self, slug: str) -> Optional[asyncio.subprocess.Process]:
@@ -81,9 +92,7 @@ class Device(ABC):
         return await self._unsupported("pause")
 
     async def is_playing(self) -> bool:
-        logger.warning(
-            f"{self.__class__.__name__} does not support is_playing"
-        )
+        logger.warning(f"{self.__class__.__name__} does not support is_playing")
         return False
 
     async def resume(self) -> bool:
@@ -112,10 +121,17 @@ class ChromecastDevice(Device):
     IS_PLAYING_TIMEOUT: float = 15
 
     supports_enqueue = True
-    supported_methods = frozenset({
-        "youtube", "video", "url", "glob",
-        "volume_up", "volume_down", "pause",
-    })
+    supported_methods = frozenset(
+        {
+            "youtube",
+            "video",
+            "url",
+            "glob",
+            "volume_up",
+            "volume_down",
+            "pause",
+        }
+    )
 
     async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing youtube video {video_id}")
@@ -123,7 +139,9 @@ class ChromecastDevice(Device):
             ["catt", "cast", f"https://www.youtube.com/watch?v={video_id}"]
         )
 
-    async def enqueue_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
+    async def enqueue_youtube(
+        self, video_id: str
+    ) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Enqueuing youtube video {video_id}")
         return await self._run(
             ["catt", "add", f"https://www.youtube.com/watch?v={video_id}"]
@@ -159,8 +177,10 @@ class ChromecastDevice(Device):
     async def is_playing(self) -> bool:
         """Return True only if every attempt reports playback.
 
-        Conservative: one idle check is enough to conclude the device is idle,
-        which matches the behavior of the former chromecast_checker.
+        Conservative-idle: one idle check is enough to conclude the device
+        is idle (contrast with ``FireTVDevice.is_playing``, which is
+        conservative-playing — one playing observation is enough to keep
+        the fallback off).
         """
         for attempt in range(self.IS_PLAYING_CHECKS):
             if attempt > 0:
@@ -171,9 +191,7 @@ class ChromecastDevice(Device):
                     timeout=self.IS_PLAYING_TIMEOUT,
                 )
             except asyncio.TimeoutError:
-                logger.warning(
-                    "catt discovery/prep_info timed out; treating as idle"
-                )
+                logger.warning("catt discovery/prep_info timed out; treating as idle")
                 return False
             if not playing:
                 return False
@@ -278,21 +296,36 @@ class FireTVDevice(Device):
     VLC_ACTIVITY: str = ".StartActivity"
 
     _MEDIA_PACKAGES: Tuple[str, ...] = (
-        PRIME_VIDEO_PACKAGE, YOUTUBE_PACKAGE, NETFLIX_PACKAGE, VLC_PACKAGE,
+        PRIME_VIDEO_PACKAGE,
+        YOUTUBE_PACKAGE,
+        NETFLIX_PACKAGE,
+        VLC_PACKAGE,
         GLOBOPLAY_PACKAGE,
     )
 
+    # MediaSession PlaybackState values that count as "actively playing".
+    # 3=playing, 6=buffering — buffering means the foregrounded media app
+    # is trying to play and waiting on data (e.g. our HTTP server stalls
+    # for a beat). Replacing a buffering Chosen video with the fallback
+    # is a worse outcome than letting it resume on its own.
+    _PLAYING_STATES: frozenset[int] = frozenset({3, 6})
+
+    # Number of attempts to confirm not-playing before reporting idle
+    # (conservative-playing: any single attempt observing playback wins).
+    # The cron tick that exposed this needed only one transient — adb
+    # timeout, brief PlaybackState dip, or media-button reassignment —
+    # to falsely fall back. Three attempts at 4s spacing covers up to
+    # ~8s of transient.
+    IS_PLAYING_CONFIRMATIONS: int = 3
+    IS_PLAYING_RECHECK_DELAY: float = 4.0
+
     HEARING_AID_PACKAGE: str = "com.amazon.hearingaid"
     HEARING_AID_ACTIVITY: str = ".ui.HearingAidMainActivity"
-    HEARING_AID_DEVICE_LIST_ID: str = (
-        "com.amazon.hearingaid:id/hearing_aid_gridview"
-    )
+    HEARING_AID_DEVICE_LIST_ID: str = "com.amazon.hearingaid:id/hearing_aid_gridview"
     HEARING_AID_DETAIL_LIST_ID: str = (
         "com.amazon.hearingaid:id/hearing_aid_settings_gridview"
     )
-    HEARING_AID_GRID_ITEM_ID: str = (
-        "com.amazon.hearingaid:id/gridview_item_title"
-    )
+    HEARING_AID_GRID_ITEM_ID: str = "com.amazon.hearingaid:id/gridview_item_title"
     # 0=Volume, 1=Mute, 2=Connect/Disconnect, 3=Unpair. Position is stable
     # across pt_BR and en; the toggle's *text* changes (Conectar /
     # Desconectar), so we match by resource-id + position, not by text.
@@ -307,11 +340,20 @@ class FireTVDevice(Device):
     HEARING_AID_DRILL_ATTEMPTS: int = 3
 
     supports_enqueue = False
-    supported_methods = frozenset({
-        "youtube", "prime_video", "netflix", "globoplay", "video", "glob",
-        "volume_up", "volume_down", "pause",
-        "set_hearing_aids",
-    })
+    supported_methods = frozenset(
+        {
+            "youtube",
+            "prime_video",
+            "netflix",
+            "globoplay",
+            "video",
+            "glob",
+            "volume_up",
+            "volume_down",
+            "pause",
+            "set_hearing_aids",
+        }
+    )
 
     def __init__(
         self,
@@ -320,9 +362,7 @@ class FireTVDevice(Device):
     ) -> None:
         self._configured_address = address
         self._cached_ip: Optional[str] = None
-        self._video_root = (
-            pathlib.Path(video_root).resolve() if video_root else None
-        )
+        self._video_root = pathlib.Path(video_root).resolve() if video_root else None
         self._video_http: Optional[httpserver.VideoServer] = None
 
     async def play_youtube(self, video_id: str) -> Optional[asyncio.subprocess.Process]:
@@ -346,7 +386,9 @@ class FireTVDevice(Device):
         await self._keyevent("KEYCODE_DPAD_CENTER")
         return proc
 
-    async def play_netflix(self, netflix_id: str) -> Optional[asyncio.subprocess.Process]:
+    async def play_netflix(
+        self, netflix_id: str
+    ) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing netflix {netflix_id}")
         await self._force_stop(self.NETFLIX_PACKAGE)
         await asyncio.sleep(self.NETFLIX_WAIT_SECONDS)
@@ -381,19 +423,17 @@ class FireTVDevice(Device):
         if not await self._wait_for_activity(self.GLOBOPLAY_CHOOSER_ACTIVITY):
             return proc
         await asyncio.sleep(self.GLOBOPLAY_CHOOSER_SETTLE_SECONDS)
-        await self._tap(
-            self.GLOBOPLAY_PROFILE_TAP_X, self.GLOBOPLAY_PROFILE_TAP_Y
-        )
+        await self._tap(self.GLOBOPLAY_PROFILE_TAP_X, self.GLOBOPLAY_PROFILE_TAP_Y)
         if not await self._wait_for_activity(self.GLOBOPLAY_HUB_ACTIVITY):
             return proc
         await asyncio.sleep(self.GLOBOPLAY_HUB_SETTLE_SECONDS)
-        await self._tap(
-            self.GLOBOPLAY_HUB_HERO_TAP_X, self.GLOBOPLAY_HUB_HERO_TAP_Y
-        )
+        await self._tap(self.GLOBOPLAY_HUB_HERO_TAP_X, self.GLOBOPLAY_HUB_HERO_TAP_Y)
         return proc
 
     async def _wait_for_activity(
-        self, activity: str, timeout: float = ACTIVITY_WAIT_TIMEOUT,
+        self,
+        activity: str,
+        timeout: float = ACTIVITY_WAIT_TIMEOUT,
     ) -> bool:
         """Block until the resumed activity's component name ends with
         `activity` (e.g. ``".accountchoosertv.AccountChooserActivity"`` or
@@ -434,9 +474,7 @@ class FireTVDevice(Device):
         BluetoothHearingAid profile service when the ASHA ACL link
         completes.
         """
-        out = await self._shell_capture(
-            "settings get secure hearing_aid_connected"
-        )
+        out = await self._shell_capture("settings get secure hearing_aid_connected")
         return out is not None and out.strip() == "1"
 
     async def set_hearing_aids(self, enabled: bool) -> bool:
@@ -472,16 +510,13 @@ class FireTVDevice(Device):
         # already matches the request, tapping would toggle the wrong
         # way — so check first and short-circuit.
         if (await self.is_hearing_aid_connected()) == enabled:
-            logger.info(
-                f"hearing aid already in desired state ({enabled}); skipping"
-            )
+            logger.info(f"hearing aid already in desired state ({enabled}); skipping")
             return True
 
         # ``-S`` force-stops then starts, so we always land on the
         # device-list pane regardless of any cached navigation state.
         proc = await self._shell(
-            f"am start -S -n "
-            f"{self.HEARING_AID_PACKAGE}/{self.HEARING_AID_ACTIVITY}"
+            f"am start -S -n " f"{self.HEARING_AID_PACKAGE}/{self.HEARING_AID_ACTIVITY}"
         )
         if proc is None or proc.returncode != 0:
             logger.warning("failed to launch HearingAidMainActivity")
@@ -500,9 +535,7 @@ class FireTVDevice(Device):
         for attempt in range(self.HEARING_AID_DRILL_ATTEMPTS):
             await asyncio.sleep(self.HEARING_AID_FOCUS_SETTLE_SECONDS)
             await self._keyevent("KEYCODE_DPAD_CENTER")
-            detail_xml = await self._wait_for_ui_xml(
-                self.HEARING_AID_DETAIL_LIST_ID
-            )
+            detail_xml = await self._wait_for_ui_xml(self.HEARING_AID_DETAIL_LIST_ID)
             if detail_xml is not None:
                 break
             logger.info(
@@ -520,9 +553,7 @@ class FireTVDevice(Device):
             self.HEARING_AID_TOGGLE_INDEX,
         )
         if bounds is None:
-            logger.warning(
-                "hearing-aid connect/disconnect button not found in UI dump"
-            )
+            logger.warning("hearing-aid connect/disconnect button not found in UI dump")
             await self._keyevent("KEYCODE_HOME")
             return False
 
@@ -554,8 +585,8 @@ class FireTVDevice(Device):
         """
         return await self._shell_capture(
             "f=/sdcard/ui_$$.xml; "
-            "uiautomator dump \"$f\" >/dev/null 2>&1 "
-            "&& cat \"$f\"; rm -f \"$f\"",
+            'uiautomator dump "$f" >/dev/null 2>&1 '
+            '&& cat "$f"; rm -f "$f"',
             timeout=8,
         )
 
@@ -563,9 +594,7 @@ class FireTVDevice(Device):
         return await self._wait_for_ui_xml(resource_id) is not None
 
     async def _wait_for_ui_xml(self, resource_id: str) -> Optional[str]:
-        deadline = (
-            asyncio.get_event_loop().time() + self.HEARING_AID_UI_TIMEOUT
-        )
+        deadline = asyncio.get_event_loop().time() + self.HEARING_AID_UI_TIMEOUT
         needle = f'resource-id="{resource_id}"'
         while asyncio.get_event_loop().time() < deadline:
             xml = await self._dump_ui()
@@ -574,9 +603,7 @@ class FireTVDevice(Device):
             await asyncio.sleep(self.HEARING_AID_UI_POLL_INTERVAL)
         return None
 
-    async def _wait_for_hearing_aid_state(
-        self, expected: bool, timeout: float
-    ) -> bool:
+    async def _wait_for_hearing_aid_state(self, expected: bool, timeout: float) -> bool:
         deadline = asyncio.get_event_loop().time() + timeout
         while asyncio.get_event_loop().time() < deadline:
             if (await self.is_hearing_aid_connected()) == expected:
@@ -588,8 +615,7 @@ class FireTVDevice(Device):
         logger.debug(f"Playing local video {path}")
         if self._video_root is None:
             logger.warning(
-                "FireTVDevice has no video_root configured; cannot play "
-                "local files"
+                "FireTVDevice has no video_root configured; cannot play " "local files"
             )
             return None
         try:
@@ -623,14 +649,38 @@ class FireTVDevice(Device):
         )
 
     async def is_playing(self) -> bool:
-        """Return True iff a media session reports state=3 AND a media app
-        is currently foregrounded.
+        """Return True iff a media session reports an active PlaybackState
+        AND a media app is currently foregrounded.
 
-        The foreground cross-check guards against stale PlaybackState entries
-        that a backgrounded app may leave behind — without it, navigating to
-        the launcher after watching could read as "playing" indefinitely.
+        Conservative-playing: any single attempt observing playback wins
+        and short-circuits to True. Only return False if every attempt
+        agrees the device is idle. Buffering (state=6) counts as playing
+        — see ``_PLAYING_STATES``. Mirrors ``ChromecastDevice.is_playing``
+        but inverted — Chromecast is conservative-idle; here we want to
+        avoid swapping a healthy video for the fallback because of one
+        transient (adb timeout, PlaybackState blip, media-button
+        reassignment, or a momentary non-media foreground).
+
+        The foreground cross-check guards against stale PlaybackState
+        entries a backgrounded media app may leave behind — without it,
+        navigating to the launcher after watching could read as "playing"
+        indefinitely.
         """
-        return await self._session_state_with_foreground() == 3
+        prior_observations: List[Tuple[Optional[int], Optional[str]]] = []
+        for attempt in range(self.IS_PLAYING_CONFIRMATIONS):
+            if attempt > 0:
+                await asyncio.sleep(self.IS_PLAYING_RECHECK_DELAY)
+            state, foreground = await self._session_state_with_foreground()
+            if state in self._PLAYING_STATES:
+                if prior_observations:
+                    logger.info(
+                        f"is_playing recovered on attempt {attempt + 1}; "
+                        f"prior={prior_observations} "
+                        f"now (state={state}, foreground={foreground!r})"
+                    )
+                return True
+            prior_observations.append((state, foreground))
+        return False
 
     async def resume(self) -> bool:
         """Send MEDIA_PLAY iff the foreground media app is paused.
@@ -639,32 +689,42 @@ class FireTVDevice(Device):
         with stale state), so safe to run unconditionally from cron alongside
         is_playing.
         """
-        if await self._session_state_with_foreground() != 2:
+        # state is None unless a media app is foregrounded — see
+        # _session_state_with_foreground. So `state != 2` correctly skips
+        # the non-media-foreground case; if that gating ever moves, this
+        # check would start firing MEDIA_PLAY into arbitrary apps.
+        state, _ = await self._session_state_with_foreground()
+        if state != 2:
             return False
         logger.info("foreground media app is paused; resuming")
         await self._keyevent("KEYCODE_MEDIA_PLAY")
         return True
 
-    async def _session_state_with_foreground(self) -> Optional[int]:
-        """Return the active session's playback state, or None if no media
-        app is foregrounded.
+    async def _session_state_with_foreground(
+        self,
+    ) -> Tuple[Optional[int], Optional[str]]:
+        """Return ``(state, foreground)`` for the active media-button session.
 
-        The foreground cross-check guards against stale PlaybackState entries
-        that a backgrounded app may leave behind — without it, navigating to
-        the launcher after watching could read as "playing" indefinitely.
+        ``state`` is the parsed PlaybackState int *only when* a media app is
+        foregrounded — otherwise None, even if the underlying session block
+        had a state. This preserves the cross-check that prevents a stale
+        backgrounded session from reading as playing indefinitely.
+
+        ``foreground`` is the resumed activity component when we could
+        observe it (informational, used for retry-recovered telemetry).
+        It is independent of whether the foreground is a media app.
         """
         sessions = await self._shell_capture("dumpsys media_session")
         if sessions is None:
-            return None
-        state = _active_session_state(sessions)
-        if state is None:
-            return None
+            return None, None
+        raw_state = _active_session_state(sessions)
         activities = await self._shell_capture("dumpsys activity activities")
         if activities is None:
-            return None
+            return None, None
+        foreground = _resumed_activity_component(activities)
         if not _foreground_is_media_app(activities, self._MEDIA_PACKAGES):
-            return None
-        return state
+            return None, foreground
+        return raw_state, foreground
 
     async def _start(
         self,
@@ -706,7 +766,11 @@ class FireTVDevice(Device):
             return None
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "-s", target, "shell", remote_cmd,
+                "adb",
+                "-s",
+                target,
+                "shell",
+                remote_cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -714,18 +778,14 @@ class FireTVDevice(Device):
             logger.warning(f"adb shell failed: {e}")
             return None
         try:
-            out_bytes, _ = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            out_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             logger.warning(f"adb shell timed out after {timeout}s")
             proc.kill()
             await proc.wait()
             return None
         if proc.returncode != 0:
-            logger.warning(
-                f"adb shell exited {proc.returncode}; treating as no data"
-            )
+            logger.warning(f"adb shell exited {proc.returncode}; treating as no data")
             return None
         return out_bytes.decode(errors="replace")
 
@@ -756,7 +816,9 @@ class FireTVDevice(Device):
         target = f"{ip}:{self.ADB_PORT}"
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "connect", target,
+                "adb",
+                "connect",
+                target,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -793,7 +855,8 @@ async def _discover_firetv(timeout: float) -> Optional[Tuple[str, str]]:
     """Run avahi-browse and return (name, ip) of the first Fire TV found."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "avahi-browse", "-artp",
+            "avahi-browse",
+            "-artp",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
@@ -883,9 +946,7 @@ def _foreground_is_media_app(
     return False
 
 
-_MEDIA_BUTTON_SESSION_PATTERN = re.compile(
-    r"Media button session is (.+?) \(userId="
-)
+_MEDIA_BUTTON_SESSION_PATTERN = re.compile(r"Media button session is (.+?) \(userId=")
 
 
 def _active_session_state(dumpsys_output: str) -> Optional[int]:
@@ -911,7 +972,7 @@ def _active_session_state(dumpsys_output: str) -> Optional[int]:
     # header is the active session's state — every session block emits its
     # state line before any nested sub-sections.
     block_marker = f"{active_id} (userId="
-    after_announcement = dumpsys_output[active_match.end():]
+    after_announcement = dumpsys_output[active_match.end() :]
     block_idx = after_announcement.find(block_marker)
     if block_idx < 0:
         logger.debug(
@@ -963,9 +1024,7 @@ def validate_config(config: Dict[str, Any], device: Device) -> None:
     for key_name, key_config in keys.items():
         method = key_config.get("method")
         if method not in KNOWN_METHODS:
-            raise ValueError(
-                f"key '{key_name}' uses unknown method: {method!r}"
-            )
+            raise ValueError(f"key '{key_name}' uses unknown method: {method!r}")
         if method not in device.supported_methods:
             logger.warning(
                 f"key '{key_name}' uses method '{method}' which is not "
