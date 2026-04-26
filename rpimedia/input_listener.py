@@ -1,143 +1,126 @@
 import asyncio
-import threading
 import signal
-import time
-import keyboard
-from typing import Dict
+from typing import List, Optional
+
+import evdev
+from evdev import InputDevice, ecodes
+
 from . import event_bus as eb
 
-# If a key-down arrives for an already-pressed scan code AND it's been
-# longer than this since the last key-down for that code, the OS
-# autorepeat stream has stopped — treat it as a fresh press. Linux
-# kernel autorepeat is 25-30Hz (~33ms gap), so 5s is over two orders of
-# magnitude above the largest plausible inter-repeat interval. This
-# cannot be tripped by GC pauses or scheduling jitter on the Pi short
-# of a multi-second freeze. Worst case if it ever is tripped: one
-# spurious fire, then the key re-enters the pressed set and subsequent
-# repeats are blocked again. Bounded — never a runaway.
-_AUTOREPEAT_RECOVERY_SECONDS = 5.0
+
+def _key_name(code: int) -> Optional[str]:
+    """Map evdev key code to lowercase short name (KEY_A→'a', KEY_1→'1', KEY_ESC→'esc')."""
+    raw = ecodes.KEY.get(code)
+    if raw is None:
+        return None
+    if isinstance(raw, (list, tuple)):
+        raw = raw[0]
+    if not raw.startswith("KEY_"):
+        # ecodes.KEY also indexes BTN_* (mouse buttons, power button, gamepad);
+        # those aren't typing keys and the controller's config can't bind them.
+        return None
+    return raw.removeprefix("KEY_").lower()
+
+
+def _find_keyboards() -> List[InputDevice]:
+    """Open every input device that exposes alphabetic keys.
+
+    Filters out mice, gamepads, power buttons, and other EV_KEY-but-not-keyboard
+    devices. Presence of KEY_A is the proxy for "typing-style keyboard".
+    """
+    devices = []
+    for path in evdev.list_devices():
+        try:
+            dev = InputDevice(path)
+        except OSError:
+            continue
+        try:
+            keys = dev.capabilities().get(ecodes.EV_KEY, [])
+        except OSError:
+            dev.close()
+            continue
+        if ecodes.KEY_A in keys:
+            devices.append(dev)
+        else:
+            dev.close()
+    return devices
 
 
 class InputListener:
-    def __init__(self, event_bus: eb.EventBus | None = None):
+    def __init__(self, event_bus: Optional[eb.EventBus] = None):
         """Initialize the InputListener with an event bus."""
         self.event_bus = event_bus or eb.EventBus()
-        self._shutdown_event = threading.Event()
-        self._loop = None
-        # scan_code -> monotonic time of last observed key-down.
-        # Presence in the dict means "currently considered held". An
-        # entry is cleared by an explicit key-up, OR refreshed by every
-        # autorepeat down (so a stuck-key autorepeat keeps refreshing
-        # the timestamp and stays blocked indefinitely). Keyed on
-        # scan_code rather than name because scan_code is stable across
-        # modifier state.
-        self._pressed_codes: Dict[int, float] = {}
-        self._lock = threading.Lock()
+        self._shutdown_event = asyncio.Event()
 
     async def run(self):
-        """Run the input listener in a loop until shutdown is requested."""
-        print(
-            "Keyboard input handler started. Press keys to generate events (press 'q' to quit, ESC to exit)."
-        )
-        self._loop = asyncio.get_running_loop()
+        """Run the input listener until shutdown is requested."""
+        print("Keyboard input handler started. Press keys to generate events.")
+        loop = asyncio.get_running_loop()
 
-        # Set up signal handlers for graceful shutdown
         for sig in (signal.SIGINT, signal.SIGTERM):
-            self._loop.add_signal_handler(
+            loop.add_signal_handler(
                 sig,
-                lambda s=sig: asyncio.create_task(
-                    self.handle_shutdown(f"Received signal {s.name}")
-                ),
+                lambda s=sig: self._request_shutdown(f"Received signal {s.name}"),
             )
 
-        # Hook key-down and key-up. We need both so we can distinguish a
-        # genuine press from OS autorepeat (see handle_key_event).
-        keyboard.on_press(self.handle_key_event)
-        keyboard.on_release(self.handle_key_release)
+        devices = _find_keyboards()
+        if not devices:
+            print("No keyboard input devices found.")
+            return
 
+        listeners = [asyncio.create_task(self._listen(d)) for d in devices]
+        shutdown_wait = asyncio.create_task(self._shutdown_event.wait())
         try:
-            # Keep this coroutine alive until shutdown is requested
             while not self._shutdown_event.is_set():
-                await asyncio.sleep(0.1)
+                pending = [t for t in listeners if not t.done()]
+                if not pending:
+                    self._request_shutdown("All input devices disconnected")
+                    break
+                await asyncio.wait(
+                    [shutdown_wait, *pending],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
         finally:
-            # Unhook the keyboard when this coroutine exits
-            keyboard.unhook_all()
+            shutdown_wait.cancel()
+            for task in listeners:
+                task.cancel()
+            await asyncio.gather(shutdown_wait, *listeners, return_exceptions=True)
+            for dev in devices:
+                try:
+                    dev.close()
+                except OSError:
+                    pass
 
         print("Keyboard input handler stopped.")
 
-    async def process_key(self, key):
-        """Process the key and create an event in the event bus."""
-        # Create an event with the key pressed
-        if self._loop is None:
+    async def _listen(self, device: InputDevice):
+        """Stream KEY_DOWN events from `device`. Drops kernel autorepeat (value=2) and releases (value=0)."""
+        try:
+            async for event in device.async_read_loop():
+                if self._shutdown_event.is_set():
+                    return
+                # value 1 = real DOWN; value 2 = kernel autorepeat (ignore); value 0 = UP (ignore)
+                if event.type != ecodes.EV_KEY or event.value != 1:
+                    continue
+                key_char = _key_name(event.code)
+                if key_char is None:
+                    continue
+                await self.process_key(key_char)
+        except (OSError, ValueError):
+            # Device disappeared (e.g. dongle unplugged). Other listeners and run() continue.
             return
 
-        event_data = {"key": key, "timestamp": self._loop.time()}
-
+    async def process_key(self, key: str):
+        """Process the key and create an event in the event bus."""
+        event_data = {"key": key, "timestamp": asyncio.get_running_loop().time()}
         await self.event_bus.add_event("keyboard_input", event_data)
 
-    async def handle_shutdown(self, message):
-        """Handle graceful shutdown."""
+    def _request_shutdown(self, message: str):
+        """Initiate graceful shutdown. Idempotent; safe from sync handlers and async tasks."""
+        if self._shutdown_event.is_set():
+            return
         print(f"\n{message}. Exiting...")
         self._shutdown_event.set()
-        # Cancel all tasks except the current one to allow the application to exit
         for task in asyncio.all_tasks():
             if task != asyncio.current_task():
                 task.cancel()
-
-    def handle_key_release(self, e):
-        """Clear pressed-key state when the OS reports a key-up."""
-        with self._lock:
-            self._pressed_codes.pop(e.scan_code, None)
-
-    def handle_key_event(self, e):
-        """Handle a key-down, suppressing OS autorepeat.
-
-        A real key press → release → press always carries a key-up event
-        between presses, so removing the code from _pressed_codes on
-        release lets quick re-presses of the same key (e.g. volume up)
-        through. OS autorepeat has no intervening release, so repeated
-        downs for an already-pressed code are dropped. The recovery
-        clause handles the failure case where a key-up is never delivered
-        (wireless link drop, dongle desync) — once the autorepeat stream
-        actually pauses for _AUTOREPEAT_RECOVERY_SECONDS, the next down
-        is treated as fresh, guaranteeing the key never goes permanently
-        inert.
-        """
-        if self._loop is None:
-            return
-
-        now = time.monotonic()
-        with self._lock:
-            last_down = self._pressed_codes.get(e.scan_code)
-            self._pressed_codes[e.scan_code] = now
-            if (
-                last_down is not None
-                and (now - last_down) <= _AUTOREPEAT_RECOVERY_SECONDS
-            ):
-                return
-
-        key_char = e.name
-
-        # Handle special cases
-        if key_char == "esc":
-            # Schedule shutdown on ESC
-            self._loop.call_soon_threadsafe(
-                lambda: asyncio.create_task(
-                    self.handle_shutdown("ESC key pressed, shutting down")
-                )
-            )
-            return
-
-        if key_char == "q":
-            # Schedule shutdown on 'q'
-            self._loop.call_soon_threadsafe(
-                lambda: asyncio.create_task(
-                    self.handle_shutdown("Q key pressed, shutting down")
-                )
-            )
-            return
-
-        # For all other keys, create an event
-        self._loop.call_soon_threadsafe(
-            lambda k=key_char: asyncio.create_task(self.process_key(k))
-        )

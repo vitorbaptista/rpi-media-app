@@ -8,14 +8,11 @@ dependencies = [
     "aioconsole>=0.8.1",
     "catt>=0.12.13",
     "click>=8.1.8",
-    "keyboard>=0.13.5",
+    "evdev>=1.7.0",
 ]
 
 [project.scripts]
 rpimedia = "rpimedia.cli:cli"
-
-[tool.uv.sources]
-keyboard = { git = "https://github.com/boppreh/keyboard.git" }
 
 [tool.uv]
 package = true
