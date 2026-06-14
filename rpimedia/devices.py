@@ -681,6 +681,41 @@ class FireTVDevice(Device):
                     )
                 return True
             prior_observations.append((state, foreground))
+        # Idle decision: log why. Genuine idle (launcher foregrounded) and
+        # sustained pauses are common and stay at info. The suspicious case —
+        # a media app foregrounded yet read not-playing and not cleanly paused
+        # — is the signature of a misparse (e.g. dumpsys listing a stale
+        # duplicate session ahead of the live one). Capture the raw
+        # media_session dump there so the cause can be confirmed from prod logs
+        # instead of guessed at. The extra adb call only fires in that rare
+        # case, never on normal idle ticks.
+        media_observations = [
+            (state, fg)
+            for state, fg in prior_observations
+            if fg and any(pkg in fg for pkg in self._MEDIA_PACKAGES)
+        ]
+        # A genuine sustained pause (state=2 — e.g. "are you still watching?")
+        # is benign, resume() already tried to clear it, and it persists across
+        # many ticks, so don't dump the full session every time. A media app
+        # foregrounded but read as stopped/none/error or unparseable (None) is
+        # the misparse signature worth capturing raw for diagnosis.
+        suspicious = bool(media_observations) and any(
+            state != 2 for state, _ in media_observations
+        )
+        if suspicious:
+            logger.warning(
+                "is_playing=idle but a media app was foregrounded across "
+                f"{self.IS_PLAYING_CONFIRMATIONS} attempts; "
+                f"observations={prior_observations}"
+            )
+            raw = await self._shell_capture("dumpsys media_session")
+            if raw is not None:
+                logger.warning(
+                    "dumpsys media_session at idle decision (for diagnosis):\n%s",
+                    raw,
+                )
+        else:
+            logger.info(f"is_playing=idle; observations={prior_observations}")
         return False
 
     async def resume(self) -> bool:
