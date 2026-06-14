@@ -103,11 +103,23 @@ params = [
     "data/sessao_da_tarde/chosen/**/*.mp4"
 ]
 
+# Rodízio "um filme/passeio por dia para a vovó" (ver FILMES_VOVO.md).
+# method="playlist" escolhe UM item por dia (rotação por dia-do-ano) e
+# despacha para o método real de cada item. A ordem aqui não importa: o
+# handler reordena com sorted() para a escolha diária ser determinística.
+# Botão "filmes/passeios sob demanda" — UM por dia. SEM canal ao vivo aqui
+# (conteúdo previsível e curado só). Prime ("Quando Chama o Coração") está fora
+# por exigir o canal pago Lionsgate+. Globoplay ao vivo foi removido de
+# propósito (grade imprevisível / jornalismo). Ver FILMES_VOVO.md.
 [remote.keys.b6]
-method = "glob"
+method = "playlist"
 params = [
-    "data/sessao_da_tarde/filmes/**/*.mp4",
-    "data/sessao_da_tarde/filmes/**/*.mkv"
+    "youtube:qVw_SkV797M",   # Lisboa / Alfama (4K, passeio)
+    "youtube:z6qk4QcNnCg",   # Funchal, Madeira (4K, passeio)
+    "youtube:lQxWeAZSHvs",   # Olhão, Algarve (4K, passeio)
+    "netflix:70086050",      # O Casamento de Romeu e Julieta
+    "netflix:80076609",      # Meu Passado Me Condena: O Filme
+    "netflix:70295734",      # O Céu é de Verdade
 ]
 
 [device]

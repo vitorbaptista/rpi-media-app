@@ -2,6 +2,7 @@ import logging
 import random
 import glob
 import os
+import datetime
 import asyncio
 from typing import Any, Dict, List, Optional
 from . import devices
@@ -11,6 +12,19 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
+
+
+def _daily_index(now: Optional[datetime.datetime] = None) -> int:
+    """Day-of-year rotation index, mirroring play_sessao_da_tarde.py.
+
+    Uses the day of the year, advancing by one after midday so the
+    afternoon picks the next item. Caller takes ``% len(items)``.
+    """
+    now = now or datetime.datetime.now()
+    idx = now.timetuple().tm_yday
+    if now.hour > 12:
+        idx += 1
+    return idx
 
 
 class Controller:
@@ -83,6 +97,13 @@ class Controller:
     ) -> Optional[asyncio.subprocess.Process]:
         params = data["params"]
 
+        # "playlist" is not a device capability — it rotates daily through a
+        # mix of real methods, dispatching to one per day. Handle it BEFORE
+        # the supported_methods gate; the recursive dispatch below re-applies
+        # the gate to the real submethod it picks.
+        if method == "playlist":
+            return await self._handle_playlist(params)
+
         if method not in self.device.supported_methods:
             logger.warning(
                 f"method {method!r} is not supported by "
@@ -147,6 +168,47 @@ class Controller:
             case _:
                 logger.debug(f"Unknown method: {method}")
                 return None
+
+    async def _handle_playlist(
+        self, params: List[str]
+    ) -> Optional[asyncio.subprocess.Process]:
+        """Pick one ``"<submethod>:<subparam>"`` item per day and dispatch it.
+
+        The keyboard path shuffles params, so re-establish a canonical order
+        with ``sorted`` to keep the daily pick deterministic. The chosen item
+        is dispatched by recursively calling ``_handle_method_call``, which
+        reuses the per-method handlers and re-applies the supported_methods
+        gate to the real submethod.
+        """
+        if not params:
+            logger.warning("playlist has no params; nothing to play")
+            return None
+
+        sorted_params = sorted(params)
+        idx = _daily_index()
+        chosen = sorted_params[idx % len(sorted_params)]
+
+        try:
+            submethod, subparam = devices.split_playlist_item(chosen)
+        except ValueError:
+            logger.warning(
+                f"playlist item {chosen!r} is malformed (no ':'); skipping"
+            )
+            return None
+
+        if submethod == "playlist":
+            # A nested playlist recurses forever (idx % 1 == 0 keeps picking
+            # the same item). validate_config rejects this at startup; guard
+            # here too in case dispatch is reached without validation.
+            logger.warning(
+                f"playlist item {chosen!r} nests 'playlist'; skipping"
+            )
+            return None
+
+        logger.debug(f"playlist chose {submethod!r} with param {subparam!r}")
+        return await self._handle_method_call(
+            submethod, {"params": [subparam], "max_enqueued_videos": 0}
+        )
 
     async def play_globs(self, glob_paths: List[str]) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing globs in {glob_paths}")
