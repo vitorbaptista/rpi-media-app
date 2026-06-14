@@ -950,6 +950,14 @@ def _foreground_is_media_app(
 _MEDIA_BUTTON_SESSION_PATTERN = re.compile(r"Media button session is (.+?) \(userId=")
 
 
+# Matches a Sessions Stack header line ("<tag> <pkg>/<tag> (userId="). Used to
+# find where one session block ends and the next begins. Anchored at line start
+# (MULTILINE) and requires a "<pkg>/<tag>" component, so intra-block
+# callback/controller lines — which carry "(userId=" but sit deeper and rarely
+# precede the PlaybackState line — aren't mistaken for the next header.
+_SESSION_HEADER_TAIL = re.compile(r"^\s*(?:\S+ )*\S+/\S* \(userId=", re.MULTILINE)
+
+
 def _active_session_state(dumpsys_output: str) -> Optional[int]:
     """Return the playback state of the media-button session.
 
@@ -967,25 +975,62 @@ def _active_session_state(dumpsys_output: str) -> Optional[int]:
     if active_match is None:
         return None
     active_id = active_match.group(1)
-    # The Sessions Stack header for this session is "<tag> <pkg>/<tag>
+    # The Sessions Stack header for each session is "<tag> <pkg>/<tag>
     # (userId=N)", so we look for `<active_id> (userId=` *after* the line
-    # that named the session. The first state=PlaybackState following that
-    # header is the active session's state — every session block emits its
-    # state line before any nested sub-sections.
+    # that named the active session. The first PlaybackState following a
+    # header is that block's state — every session block emits its state
+    # line before any nested sub-sections.
+    #
+    # The active component can legitimately own MORE than one block: an app
+    # that creates a fresh MediaSession per playback (ExoPlayer-based apps
+    # like YouTube) leaves the prior session lingering at a stale state
+    # (1=stopped, 0=none) listed *before* the live one (the stack is sorted
+    # "top of stack at the end"). Reading only the first match would report
+    # the stale state and falsely fall back, so we scan every block owned by
+    # the active component and let a playing state win — mirroring the
+    # conservative-playing intent of is_playing. Restricting to the active
+    # component still excludes unrelated Bluetooth/TTS/other-app sessions
+    # that report state=3 indefinitely.
     block_marker = f"{active_id} (userId="
     after_announcement = dumpsys_output[active_match.end() :]
-    block_idx = after_announcement.find(block_marker)
-    if block_idx < 0:
+    states: List[int] = []
+    search_from = 0
+    while True:
+        block_idx = after_announcement.find(block_marker, search_from)
+        if block_idx < 0:
+            break
+        # Bound the block to its own header → next session header so a block
+        # with no PlaybackState doesn't borrow the following session's state.
+        # A header carries a "<pkg>/<tag> (userId=" component; intra-block
+        # callback/controller lines also contain "(userId=" but no "/" before
+        # it, so bounding on the bare substring could truncate the block
+        # before its state line. _SESSION_HEADER_TAIL keys on the "/...(userId="
+        # shape to skip those.
+        header_end = block_idx + len(block_marker)
+        next_header = _SESSION_HEADER_TAIL.search(after_announcement, header_end)
+        next_idx = next_header.start() if next_header else -1
+        block_text = (
+            after_announcement[block_idx:next_idx]
+            if next_idx >= 0
+            else after_announcement[block_idx:]
+        )
+        state_match = _PLAYBACK_STATE_PATTERN.search(block_text)
+        if state_match is not None:
+            state = int(state_match.group(1))
+            if state in FireTVDevice._PLAYING_STATES:
+                return state
+            states.append(state)
+        search_from = header_end
+    if not states:
         logger.debug(
             f"media_session announced active={active_id!r} but no matching "
-            "session block found; dumpsys format may have drifted"
+            "session block with a PlaybackState found; dumpsys format may "
+            "have drifted"
         )
         return None
-    block_text = after_announcement[block_idx:]
-    state_match = _PLAYBACK_STATE_PATTERN.search(block_text)
-    if state_match is None:
-        return None
-    return int(state_match.group(1))
+    # No block is playing; the top-of-stack (last) block is the most current
+    # for paused/idle detection (resume() keys on state==2).
+    return states[-1]
 
 
 def _extract_friendly_name(txt_blob: str) -> Optional[str]:
