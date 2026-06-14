@@ -103,14 +103,6 @@ params = [
     "data/sessao_da_tarde/chosen/**/*.mp4"
 ]
 
-# Rodízio "um filme/passeio por dia para a vovó" (ver FILMES_VOVO.md).
-# method="playlist" escolhe UM item por dia (rotação por dia-do-ano) e
-# despacha para o método real de cada item. A ordem aqui não importa: o
-# handler reordena com sorted() para a escolha diária ser determinística.
-# Botão "filmes/passeios sob demanda" — UM por dia. SEM canal ao vivo aqui
-# (conteúdo previsível e curado só). Prime ("Quando Chama o Coração") está fora
-# por exigir o canal pago Lionsgate+. Globoplay ao vivo foi removido de
-# propósito (grade imprevisível / jornalismo). Ver FILMES_VOVO.md.
 [remote.keys.b6]
 method = "playlist"
 params = [
@@ -120,9 +112,9 @@ params = [
     "netflix:70086050",      # O Casamento de Romeu e Julieta
     "netflix:80076609",      # Meu Passado Me Condena: O Filme
     "netflix:70295734",      # O Céu é de Verdade
-    "netflix:82836255",      # Davi: Nasce um Rei (2025, animação bíblica)
-    "netflix:70196240",      # Maria, Mãe do Filho de Deus (2003)
-    "netflix:82032990",      # Tetra: Acreditar de Novo (2026, doc Copa 94)
+    "netflix:82836255",      # Davi: Nasce um Rei
+    "netflix:70196240",      # Maria, Mãe do Filho de Deus
+    "netflix:82032990",      # Tetra: Acreditar de Novo
 ]
 
 [device]
