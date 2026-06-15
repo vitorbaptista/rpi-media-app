@@ -57,7 +57,10 @@ def _settings(config: Dict[str, Any]) -> Optional[Dict[str, str]]:
     rather than warning every cron tick.
     """
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
+    # Accept the modern publishable-key name as well as the generic one.
+    key = os.environ.get("SUPABASE_KEY") or os.environ.get(
+        "SUPABASE_PUBLISHABLE_KEY"
+    )
     if not url or not key:
         logger.debug("playlog off: SUPABASE_URL/SUPABASE_KEY not set")
         return None
