@@ -120,3 +120,7 @@ params = [
 [device]
 type = "firetv"
 address = "192.168.15.174"
+
+# Play log
+[supabase]
+table = "play_log"

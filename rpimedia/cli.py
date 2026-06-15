@@ -14,6 +14,7 @@ from . import devices
 from . import event_bus as eb
 from . import input_listener
 from . import ipc_listener
+from . import playlog
 
 
 # Configure logging to suppress asyncio debug messages
@@ -136,10 +137,27 @@ def is_playing():
         config = _load_config()
         device = devices.build_device(config)
         try:
-            return await device.is_playing()
+            playing = await device.is_playing()
         except Exception:
             logging.exception("is_playing check failed; treating as idle")
-            return False
+            playing = False
+
+        # This cron tick is the only periodic device poll, so it doubles as
+        # the play log's observation point — it records change-only and so
+        # captures playback started directly on the device. Best-effort:
+        # never let logging affect the playback fallback decision.
+        try:
+            media = await device.current_media()
+            if media is not None:
+                await playlog.log_observed(
+                    config,
+                    app=media.get("app"),
+                    state=media.get("state") or "idle",
+                )
+        except Exception:
+            logging.debug("observed play log failed", exc_info=True)
+
+        return playing
 
     playing = asyncio.run(check())
     if playing:

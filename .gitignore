@@ -16,3 +16,6 @@ data/
 !data/sessao_da_tarde/filmes/.gitkeep
 
 .python-version
+
+# Local secrets (Supabase play log)
+.env

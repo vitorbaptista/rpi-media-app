@@ -96,6 +96,15 @@ class Device(ABC):
         logger.warning(f"{self.__class__.__name__} does not support is_playing")
         return False
 
+    async def current_media(self) -> Optional[Dict[str, Optional[str]]]:
+        """Return what's on screen now, for the external play log.
+
+        Shape: ``{"app": <name or None>, "state": playing|paused|idle}``.
+        Returns None when the device can't be inspected. Default:
+        unsupported.
+        """
+        return None
+
     async def resume(self) -> bool:
         """Resume a paused media session in place. Return True iff resumed."""
         await self._unsupported("resume")
@@ -303,6 +312,16 @@ class FireTVDevice(Device):
         VLC_PACKAGE,
         GLOBOPLAY_PACKAGE,
     )
+
+    # Friendly names for the play log, keyed by package. Mirrors the method
+    # names used on the command side so the two sources line up.
+    _APP_NAMES: Dict[str, str] = {
+        PRIME_VIDEO_PACKAGE: "prime_video",
+        YOUTUBE_PACKAGE: "youtube",
+        NETFLIX_PACKAGE: "netflix",
+        GLOBOPLAY_PACKAGE: "globoplay",
+        VLC_PACKAGE: "video",
+    }
 
     # MediaSession PlaybackState values that count as "actively playing".
     # 3=playing, 6=buffering — buffering means the foregrounded media app
@@ -761,6 +780,30 @@ class FireTVDevice(Device):
         if not _foreground_is_media_app(activities, self._MEDIA_PACKAGES):
             return None, foreground
         return raw_state, foreground
+
+    async def current_media(self) -> Optional[Dict[str, Optional[str]]]:
+        """Snapshot of the foregrounded media app and playback state.
+
+        ``state`` is None from ``_session_state_with_foreground`` whenever a
+        media app is *not* foregrounded, which we report as idle (with
+        app=None) — that's the signal that someone left playback for the
+        launcher. A 2 is a sustained pause; 3/6 (see ``_PLAYING_STATES``)
+        are playing/buffering.
+        """
+        state, foreground = await self._session_state_with_foreground()
+        app: Optional[str] = None
+        if foreground:
+            for package, name in self._APP_NAMES.items():
+                if package in foreground:
+                    app = name
+                    break
+        if state in self._PLAYING_STATES:
+            label = "playing"
+        elif state == 2:
+            label = "paused"
+        else:
+            label = "idle"
+        return {"app": app, "state": label}
 
     async def _start(
         self,

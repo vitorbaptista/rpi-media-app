@@ -4,9 +4,10 @@ import glob
 import os
 import datetime
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Coroutine, Dict, List, Optional
 from . import devices
 from . import event_bus as eb
+from . import playlog
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -39,10 +40,19 @@ class Controller:
         self.event_bus: eb.EventBus = event_bus or eb.EventBus()
         self._config: Dict[str, Any] = config
         self.device: devices.Device = device or devices.ChromecastDevice()
+        # Fire-and-forget play-log POSTs live here so a slow Supabase call
+        # never delays playback. Held in a set so the loop doesn't GC a
+        # task mid-flight; each removes itself when done.
+        self._log_tasks: set[asyncio.Task[None]] = set()
 
         # For some reason, the random.shuffle() is always picking the same
         # video. I'm trying to explicitly set a random seed now.
         random.seed()
+
+    def _spawn_log(self, coro: Coroutine[Any, Any, None]) -> None:
+        task = asyncio.create_task(coro)
+        self._log_tasks.add(task)
+        task.add_done_callback(self._log_tasks.discard)
 
     async def run(self) -> None:
         while True:
@@ -85,6 +95,9 @@ class Controller:
         params = {
             "params": key_params,
             "max_enqueued_videos": event_data.get("max_enqueued_videos"),
+            # The bound button (e.g. "b6") is the play log's "source" — the
+            # most specific origin we know for a key-driven play.
+            "source": binding,
         }
 
         # We shuffle the params to avoid always playing the same video
@@ -102,7 +115,7 @@ class Controller:
         # the supported_methods gate; the recursive dispatch below re-applies
         # the gate to the real submethod it picks.
         if method == "playlist":
-            return await self._handle_playlist(params)
+            return await self._handle_playlist(params, data.get("source"))
 
         if method not in self.device.supported_methods:
             logger.warning(
@@ -110,6 +123,19 @@ class Controller:
                 f"{self.device.__class__.__name__}; ignoring"
             )
             return None
+
+        # Record the launch intent, fire-and-forget so a slow POST never
+        # delays playback. params[0] is representative: the first youtube id,
+        # the netflix/globoplay/prime id, or the glob/url target.
+        if method in playlog.COMMAND_METHODS and params:
+            self._spawn_log(
+                playlog.log_command(
+                    self._config,
+                    method=method,
+                    param=str(params[0]),
+                    source=data.get("source"),
+                )
+            )
 
         match method:
             case "youtube":
@@ -170,7 +196,7 @@ class Controller:
                 return None
 
     async def _handle_playlist(
-        self, params: List[str]
+        self, params: List[str], source: Optional[str] = None
     ) -> Optional[asyncio.subprocess.Process]:
         """Pick one ``"<submethod>:<subparam>"`` item per day and dispatch it.
 
@@ -207,7 +233,8 @@ class Controller:
 
         logger.debug(f"playlist chose {submethod!r} with param {subparam!r}")
         return await self._handle_method_call(
-            submethod, {"params": [subparam], "max_enqueued_videos": 0}
+            submethod,
+            {"params": [subparam], "max_enqueued_videos": 0, "source": source},
         )
 
     async def play_globs(self, glob_paths: List[str]) -> Optional[asyncio.subprocess.Process]:
