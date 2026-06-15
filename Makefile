@@ -9,7 +9,7 @@ test:
 	uv run pre-commit run --all-files
 
 deploy:
-	rsync -av --progress ./* rpi:/home/vitor/Projetos/rpi-media/
+	rsync -av --progress ./* .env rpi:/home/vitor/Projetos/rpi-media/
 
 setup: setup_crontab
 	sudo make setup_service
