@@ -1,4 +1,4 @@
-.PHONY: install test deploy setup setup_service setup_crontab tail_logs ensure_video_is_playing play_sessao_da_tarde play_viagens_brasil play_musica play_filmes_vovo mute_before_dawn hearing_aids_schedule
+.PHONY: install test deploy setup setup_service setup_crontab setup_supabase tail_logs ensure_video_is_playing play_sessao_da_tarde play_viagens_brasil play_musica play_filmes_vovo mute_before_dawn hearing_aids_schedule
 
 install:
 	uv sync
@@ -24,6 +24,13 @@ setup_service:
 setup_crontab:
 	crontab prod.crontab
 	crontab -l
+
+setup_supabase:
+	# Aplica o schema do log de reprodução. Precisa de SUPABASE_DB_URL
+	# (connection string em Settings -> Database do projeto):
+	#   SUPABASE_DB_URL="postgresql://..." make setup_supabase
+	@test -n "$$SUPABASE_DB_URL" || { echo "SUPABASE_DB_URL not set"; exit 1; }
+	psql "$$SUPABASE_DB_URL" -f supabase_schema.sql
 
 tail_logs:
 	journalctl -u rpimedia.service -f
