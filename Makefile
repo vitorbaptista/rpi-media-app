@@ -26,13 +26,10 @@ setup_crontab:
 	crontab -l
 
 setup_supabase:
-	# Aplica o schema do log de reprodução. Lê SUPABASE_DB_URL (connection
-	# string em Settings -> Database do projeto) do .env, ou do ambiente:
-	#   make setup_supabase            # usa o .env
-	#   SUPABASE_DB_URL="postgresql://..." make setup_supabase
-	set -a; [ -f .env ] && . ./.env; set +a; \
-	test -n "$$SUPABASE_DB_URL" || { echo "SUPABASE_DB_URL not set (.env or env)"; exit 1; }; \
-	psql "$$SUPABASE_DB_URL" -f supabase_schema.sql
+	# Aplica o schema do log de reprodução via Management API (sem psql).
+	# Lê SUPABASE_URL e SUPABASE_ACCESS_TOKEN (token pessoal sbp_..., em
+	# supabase.com -> Account -> Access Tokens) do .env ou do ambiente.
+	uv run python setup_supabase.py
 
 tail_logs:
 	journalctl -u rpimedia.service -f

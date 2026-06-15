@@ -115,12 +115,18 @@ local. São duas fontes na mesma tabela:
 fica desligado em silêncio e **nunca** atrapalha a reprodução.
 
 1. Crie um projeto no Supabase. Na sua máquina de desenvolvimento, copie o
-   `.env.example` para `.env` e preencha o `SUPABASE_DB_URL` (connection
-   string em Settings → Database). Aplique o schema:
+   `.env.example` para `.env`, preencha `SUPABASE_URL` e um
+   `SUPABASE_ACCESS_TOKEN` (token pessoal em Account → Access Tokens) e
+   aplique o schema (via Management API, sem `psql`):
 
    ```bash
-   make setup_supabase   # lê SUPABASE_DB_URL do .env (precisa do psql)
+   make setup_supabase
    ```
+
+   > A tabela precisa existir antes do primeiro insert: a data API
+   > (PostgREST) que o dispositivo usa só faz CRUD, não cria tabelas. O
+   > schema é idempotente, então dá para rodar de novo sem problema. Como
+   > alternativa, cole o `supabase_schema.sql` no SQL Editor do painel.
 
 2. No dispositivo, crie um `.env` (a partir do `.env.example`, fora do git)
    apenas com as credenciais de REST:
@@ -133,8 +139,9 @@ fica desligado em silêncio e **nunca** atrapalha a reprodução.
    Use a **chave anon** com a política RLS de insert/select do
    `supabase_schema.sql` — nunca a `service_role` —, assim uma chave vazada
    no máximo adiciona ruído, sem reescrever ou apagar o histórico. O
-   `SUPABASE_DB_URL` fica só no `.env` da máquina de desenvolvimento (o
-   `make deploy` não copia dotfiles), nunca no RPi.
+   `SUPABASE_ACCESS_TOKEN` (que é amplo, da conta) fica só no `.env` da
+   máquina de desenvolvimento (o `make deploy` não copia dotfiles), nunca
+   no RPi.
 
 ## 🎮 Uso
 

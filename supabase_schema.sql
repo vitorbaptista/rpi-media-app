@@ -30,8 +30,10 @@ create index if not exists play_log_ts_idx on public.play_log (ts desc);
 -- worst, never rewrite or wipe the history.
 alter table public.play_log enable row level security;
 
+drop policy if exists play_log_anon_insert on public.play_log;
 create policy play_log_anon_insert on public.play_log
     for insert to anon with check (true);
 
+drop policy if exists play_log_anon_select on public.play_log;
 create policy play_log_anon_select on public.play_log
     for select to anon using (true);
