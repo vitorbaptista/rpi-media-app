@@ -40,7 +40,10 @@ logger = logging.getLogger(__name__)
 # works uniformly under systemd and cron (both run with cwd = project root).
 load_dotenv()
 
-_TIMEOUT = 2.0
+# Generous: command logging is fire-and-forget (never blocks playback) and
+# the observed path runs in the latency-tolerant cron tick, so we'd rather
+# wait out a Supabase cold start than drop a row that would have succeeded.
+_TIMEOUT = 10.0
 
 # Methods worth recording as command events; volume/pause/hearing-aid
 # control are not "what's playing" and are skipped.
