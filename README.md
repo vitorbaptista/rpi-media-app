@@ -114,14 +114,16 @@ local. São duas fontes na mesma tabela:
 É totalmente *best-effort*: sem credenciais (ou com falha de rede) o log
 fica desligado em silêncio e **nunca** atrapalha a reprodução.
 
-1. Crie um projeto no Supabase e aplique o schema:
+1. Crie um projeto no Supabase. Na sua máquina de desenvolvimento, copie o
+   `.env.example` para `.env` e preencha o `SUPABASE_DB_URL` (connection
+   string em Settings → Database). Aplique o schema:
 
    ```bash
-   # SUPABASE_DB_URL = connection string (Settings → Database) do projeto
-   SUPABASE_DB_URL="postgresql://..." make setup_supabase
+   make setup_supabase   # lê SUPABASE_DB_URL do .env (precisa do psql)
    ```
 
-2. No dispositivo, crie um `.env` (a partir do `.env.example`, fora do git):
+2. No dispositivo, crie um `.env` (a partir do `.env.example`, fora do git)
+   apenas com as credenciais de REST:
 
    ```bash
    SUPABASE_URL=https://SEU-PROJETO.supabase.co
@@ -130,7 +132,9 @@ fica desligado em silêncio e **nunca** atrapalha a reprodução.
 
    Use a **chave anon** com a política RLS de insert/select do
    `supabase_schema.sql` — nunca a `service_role` —, assim uma chave vazada
-   no máximo adiciona ruído, sem reescrever ou apagar o histórico.
+   no máximo adiciona ruído, sem reescrever ou apagar o histórico. O
+   `SUPABASE_DB_URL` fica só no `.env` da máquina de desenvolvimento (o
+   `make deploy` não copia dotfiles), nunca no RPi.
 
 ## 🎮 Uso
 

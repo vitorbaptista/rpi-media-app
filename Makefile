@@ -26,10 +26,12 @@ setup_crontab:
 	crontab -l
 
 setup_supabase:
-	# Aplica o schema do log de reprodução. Precisa de SUPABASE_DB_URL
-	# (connection string em Settings -> Database do projeto):
+	# Aplica o schema do log de reprodução. Lê SUPABASE_DB_URL (connection
+	# string em Settings -> Database do projeto) do .env, ou do ambiente:
+	#   make setup_supabase            # usa o .env
 	#   SUPABASE_DB_URL="postgresql://..." make setup_supabase
-	@test -n "$$SUPABASE_DB_URL" || { echo "SUPABASE_DB_URL not set"; exit 1; }
+	set -a; [ -f .env ] && . ./.env; set +a; \
+	test -n "$$SUPABASE_DB_URL" || { echo "SUPABASE_DB_URL not set (.env or env)"; exit 1; }; \
 	psql "$$SUPABASE_DB_URL" -f supabase_schema.sql
 
 tail_logs:
