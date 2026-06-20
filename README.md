@@ -61,6 +61,13 @@ type = "firetv"                        # "chromecast" (padrão) ou "firetv"
 # address = "192.168.15.174"           # opcional; se omitido, descobre via mDNS
 ```
 
+Para uso autônomo, configure o Fire TV para não dormir nem entrar em
+screensaver:
+
+```bash
+make setup_firetv
+```
+
 ### 4. Configure o mapeamento de teclas
 
 Edite o arquivo `config.toml` para mapear teclas aos comandos desejados:
