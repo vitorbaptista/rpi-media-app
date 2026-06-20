@@ -106,9 +106,6 @@ params = [
 [remote.keys.b6]
 method = "playlist"
 params = [
-    "youtube:qVw_SkV797M",   # Lisboa / Alfama (4K, passeio)
-    "youtube:z6qk4QcNnCg",   # Funchal, Madeira (4K, passeio)
-    "youtube:lQxWeAZSHvs",   # Olhão, Algarve (4K, passeio)
     "netflix:70086050",      # O Casamento de Romeu e Julieta
     "netflix:80076609",      # Meu Passado Me Condena: O Filme
     "netflix:70295734",      # O Céu é de Verdade
