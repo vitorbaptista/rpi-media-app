@@ -59,18 +59,14 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             start, end = parsed
             if start is None or end is None:
                 f.close()
-                self.send_response(
-                    HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE
-                )
+                self.send_response(HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
                 self.send_header("Content-Range", f"bytes */{size}")
                 self.end_headers()
                 return None
             f.seek(start)
             self.send_response(HTTPStatus.PARTIAL_CONTENT)
             self.send_header("Content-Type", self.guess_type(path))
-            self.send_header(
-                "Content-Range", f"bytes {start}-{end}/{size}"
-            )
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.send_header("Content-Length", str(end - start + 1))
             self.send_header("Accept-Ranges", "bytes")
             self.end_headers()
@@ -150,8 +146,7 @@ class VideoServer:
         )
         thread.start()
         logger.info(
-            f"video HTTP server listening on {bind_host}:{port}, "
-            f"root={self._root}"
+            f"video HTTP server listening on {bind_host}:{port}, " f"root={self._root}"
         )
         return port
 

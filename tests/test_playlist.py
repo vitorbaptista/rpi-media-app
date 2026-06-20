@@ -43,9 +43,7 @@ def _make_controller(device: FakeDevice) -> controller_mod.Controller:
     return controller_mod.Controller(config={}, device=device)
 
 
-def _freeze_now(
-    monkeypatch: pytest.MonkeyPatch, dt: datetime.datetime
-) -> None:
+def _freeze_now(monkeypatch: pytest.MonkeyPatch, dt: datetime.datetime) -> None:
     class _FrozenDatetime(datetime.datetime):
         @classmethod
         def now(cls, tz: Optional[datetime.tzinfo] = None) -> datetime.datetime:
@@ -54,9 +52,7 @@ def _freeze_now(
     monkeypatch.setattr(controller_mod.datetime, "datetime", _FrozenDatetime)
 
 
-ALL_SUBMETHODS = frozenset(
-    {"youtube", "netflix", "prime_video", "globoplay"}
-)
+ALL_SUBMETHODS = frozenset({"youtube", "netflix", "prime_video", "globoplay"})
 
 
 # --- _daily_index --------------------------------------------------------
@@ -82,11 +78,11 @@ def test_daily_index_bumps_after_noon() -> None:
     [
         # sorted params (see below) -> index % 4 selects deterministically.
         # tm_yday for these dates makes the math easy to follow.
-        (datetime.datetime(2026, 1, 1, 9, 0), 1),   # idx 1 % 4 -> 1
+        (datetime.datetime(2026, 1, 1, 9, 0), 1),  # idx 1 % 4 -> 1
         (datetime.datetime(2026, 1, 1, 18, 0), 2),  # idx 2 % 4 -> 2
-        (datetime.datetime(2026, 1, 2, 9, 0), 2),   # idx 2 % 4 -> 2
-        (datetime.datetime(2026, 1, 3, 9, 0), 3),   # idx 3 % 4 -> 3
-        (datetime.datetime(2026, 1, 4, 9, 0), 0),   # idx 4 % 4 -> 0
+        (datetime.datetime(2026, 1, 2, 9, 0), 2),  # idx 2 % 4 -> 2
+        (datetime.datetime(2026, 1, 3, 9, 0), 3),  # idx 3 % 4 -> 3
+        (datetime.datetime(2026, 1, 4, 9, 0), 0),  # idx 4 % 4 -> 0
     ],
 )
 async def test_playlist_picks_expected_item_for_day(
@@ -207,9 +203,7 @@ async def test_playlist_malformed_item_returns_none(
 
 
 class _ValidationDevice(devices.Device):
-    supported_methods = frozenset(
-        {"youtube", "netflix", "prime_video", "globoplay"}
-    )
+    supported_methods = frozenset({"youtube", "netflix", "prime_video", "globoplay"})
 
 
 def _config_with_playlist(params: List[str]) -> Dict[str, Any]:

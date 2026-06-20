@@ -61,9 +61,7 @@ def _settings(config: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """
     url = os.environ.get("SUPABASE_URL")
     # Accept the modern publishable-key name as well as the generic one.
-    key = os.environ.get("SUPABASE_KEY") or os.environ.get(
-        "SUPABASE_PUBLISHABLE_KEY"
-    )
+    key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_PUBLISHABLE_KEY")
     if not url or not key:
         logger.debug("playlog off: SUPABASE_URL/SUPABASE_KEY not set")
         return None

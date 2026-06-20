@@ -43,9 +43,7 @@ def start():
         config = _load_config()
         device = devices.build_device(config)
         devices.validate_config(config, device)
-        ctrl = controller.Controller(
-            config=config, event_bus=event_bus, device=device
-        )
+        ctrl = controller.Controller(config=config, event_bus=event_bus, device=device)
         listener = input_listener.InputListener(event_bus=event_bus)
         ipc_event_listener = ipc_listener.IPCListener(event_bus=event_bus)
 
@@ -244,9 +242,7 @@ def hearing_aids_schedule(window_start: str, window_end: str):
             )
             return True
 
-        logging.info(
-            f"hearing_aids_schedule: transition {last} -> {desired}"
-        )
+        logging.info(f"hearing_aids_schedule: transition {last} -> {desired}")
         success = await device.set_hearing_aids(desired == "on")
         if not success:
             logging.error(
@@ -267,9 +263,7 @@ def _parse_hhmm(s: str) -> dtime:
     try:
         return datetime.strptime(s, "%H:%M").time()
     except ValueError:
-        raise ValueError(
-            f"invalid time {s!r}: expected HH:MM in 24-hour format"
-        )
+        raise ValueError(f"invalid time {s!r}: expected HH:MM in 24-hour format")
 
 
 def _in_window(now: dtime, start: dtime, end: dtime) -> bool:
@@ -280,9 +274,7 @@ def _in_window(now: dtime, start: dtime, end: dtime) -> bool:
 
 
 def _hearing_aids_state_path() -> pathlib.Path:
-    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser(
-        "~/.local/state"
-    )
+    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
     return pathlib.Path(base) / "rpimedia" / "hearing_aids.state"
 
 

@@ -217,18 +217,14 @@ class Controller:
         try:
             submethod, subparam = devices.split_playlist_item(chosen)
         except ValueError:
-            logger.warning(
-                f"playlist item {chosen!r} is malformed (no ':'); skipping"
-            )
+            logger.warning(f"playlist item {chosen!r} is malformed (no ':'); skipping")
             return None
 
         if submethod == "playlist":
             # A nested playlist recurses forever (idx % 1 == 0 keeps picking
             # the same item). validate_config rejects this at startup; guard
             # here too in case dispatch is reached without validation.
-            logger.warning(
-                f"playlist item {chosen!r} nests 'playlist'; skipping"
-            )
+            logger.warning(f"playlist item {chosen!r} nests 'playlist'; skipping")
             return None
 
         logger.debug(f"playlist chose {submethod!r} with param {subparam!r}")
@@ -237,14 +233,22 @@ class Controller:
             {"params": [subparam], "max_enqueued_videos": 0, "source": source},
         )
 
-    async def play_globs(self, glob_paths: List[str]) -> Optional[asyncio.subprocess.Process]:
+    async def play_globs(
+        self, glob_paths: List[str]
+    ) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing globs in {glob_paths}")
         glob_paths = [os.path.join(BASE_DIR, glob_path) for glob_path in glob_paths]
-        video_paths: List[str] = sorted(list(set([
-            path
-            for glob_path in glob_paths
-            for path in glob.glob(glob_path, recursive=True)
-        ])))
+        video_paths: List[str] = sorted(
+            list(
+                set(
+                    [
+                        path
+                        for glob_path in glob_paths
+                        for path in glob.glob(glob_path, recursive=True)
+                    ]
+                )
+            )
+        )
         if not video_paths:
             logger.error(f"No video found for globs {glob_paths}")
             return None

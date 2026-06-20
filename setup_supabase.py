@@ -33,7 +33,9 @@ def main() -> int:
 
     match = re.match(r"https?://([^.]+)\.supabase\.", url.strip())
     if not match:
-        print(f"could not derive project ref from SUPABASE_URL={url!r}", file=sys.stderr)
+        print(
+            f"could not derive project ref from SUPABASE_URL={url!r}", file=sys.stderr
+        )
         return 1
     ref = match.group(1)
 

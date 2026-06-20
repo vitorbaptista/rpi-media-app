@@ -1,4 +1,6 @@
-.PHONY: install test deploy setup setup_service setup_crontab setup_supabase tail_logs ensure_video_is_playing play_sessao_da_tarde play_viagens_brasil play_musica play_filmes_vovo mute_before_dawn hearing_aids_schedule
+.PHONY: install test deploy setup setup_service setup_crontab setup_firetv setup_supabase tail_logs ensure_video_is_playing play_sessao_da_tarde play_viagens_brasil play_musica play_filmes_vovo mute_before_dawn hearing_aids_schedule
+
+FIRETV_IP ?= $(shell python3 -c 'import tomllib; print(tomllib.load(open("config.toml", "rb")).get("device", {}).get("address", ""))' 2>/dev/null)
 
 install:
 	uv sync
@@ -24,6 +26,13 @@ setup_service:
 setup_crontab:
 	crontab prod.crontab
 	crontab -l
+
+setup_firetv:
+	@test -n "$(FIRETV_IP)" || (echo "Set FIRETV_IP=... or device.address in config.toml" >&2; exit 1)
+	adb connect "$(FIRETV_IP):5555"
+	adb -s "$(FIRETV_IP):5555" shell settings put secure sleep_timeout 0
+	adb -s "$(FIRETV_IP):5555" shell settings put system screen_off_timeout 2147460000
+	adb -s "$(FIRETV_IP):5555" shell 'echo sleep_timeout=$$(settings get secure sleep_timeout); echo screen_off_timeout=$$(settings get system screen_off_timeout)'
 
 setup_supabase:
 	# Aplica o schema do log de reprodução via Management API (sem psql).
