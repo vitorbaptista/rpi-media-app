@@ -1203,9 +1203,7 @@ def validate_config(config: Dict[str, Any], device: Device) -> None:
 def _validate_playlist_item(key_name: str, item: Any) -> None:
     """Validate one ``"<submethod>:<subparam>"`` playlist item structurally."""
     if not isinstance(item, str):
-        raise ValueError(
-            f"key '{key_name}': playlist item {item!r} is not a string"
-        )
+        raise ValueError(f"key '{key_name}': playlist item {item!r} is not a string")
     try:
         submethod, subparam = split_playlist_item(item)
     except ValueError:
