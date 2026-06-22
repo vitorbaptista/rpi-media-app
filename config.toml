@@ -106,12 +106,15 @@ params = [
 [remote.keys.b6]
 method = "playlist"
 params = [
-    "netflix:70086050",      # O Casamento de Romeu e Julieta
-    "netflix:80076609",      # Meu Passado Me Condena: O Filme
     "netflix:70295734",      # O Céu é de Verdade
-    "netflix:82836255",      # Davi: Nasce um Rei
     "netflix:70196240",      # Maria, Mãe do Filho de Deus
     "netflix:82032990",      # Tetra: Acreditar de Novo
+    "netflix:70143859",      # The Middle
+    "netflix:82666465",      # As Aventuras Escolhidas
+    "netflix:82836255",      # Davi: Nasce um Rei
+    "netflix:81341795",      # Testamento: A História de Moisés
+    "netflix:70295061",      # Noé
+    "netflix:82887570",      # Um Pai em Apuros
 ]
 
 [device]
