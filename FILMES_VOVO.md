@@ -1,8 +1,9 @@
 # 🎬 Filmes & Séries para a Vovó
 
-Lista curada de conforto para tocar **um por dia** (ideia: botão **b6**). Todos
-verificados ao vivo em **junho/2026** quanto a disponibilidade no Brasil e
-áudio em português. Catálogos mudam — reconfirme antes de fixar de vez.
+Lista curada de conforto para tocar **um por dia** (ideia: botão **b6**).
+Disponibilidade e áudio checados em páginas oficiais/Netflix BR em
+**2026-06-22**; os itens já antigos também tinham validação ao vivo em
+junho/2026. Catálogos mudam — reconfirme antes de fixar de vez.
 
 ## 🧭 Regras de curadoria (o perfil dela)
 
@@ -14,6 +15,9 @@ quente, esperançoso, baixa carga emocional, sempre com final feliz — clima de
 - ✅ Adora **Portugal**; e adora ser puxada para o **presente** (ela vive 100% em modo nostalgia, então conteúdo atual é um bônus).
 - ✅ Luta/conflito leve tudo bem — **desde que não seja o centro** e resolva bem.
 - ❌ Sem dramas, tristeza, tragédia, trauma, violência, terror. **Sem animação.**
+- ❌ **Ela não gostou de *O Casamento de Romeu e Julieta***. Tratar como
+  sinal contra comédia romântica barulhenta/centrada em rivalidade; não
+  recolocar no b6 sem novo teste humano.
 - ✅ **Dublado em pt-BR** ou **nativo em português** (ela não lê legendas). Passeios visuais sem narração também valem.
 
 Cada entrada traz onde assistir, IDs públicos (para ligar ao b6 depois) e o
@@ -22,39 +26,99 @@ precisarão de uma consulta via ADB no Fire TV antes de virar botão.
 
 ---
 
-## ▶️ Prontos para tocar hoje (Netflix / Prime / YouTube)
+## ▶️ No b6 agora
 
 ### 1. O Céu é de Verdade (2014) · *fé / inspiração*
 - **Onde:** Netflix (`netflix_id: 70295734`) · Prime Video BR — **dublado pt-BR**
 - Baseado em fatos: um menino de 4 anos vive uma experiência de quase-morte numa cirurgia e diz ter visitado o céu; ao voltar, transforma a fé da família. Caloroso e consolador (a criança sobrevive).
 - **Por quê:** mensagem reconfortante sobre o além, no espírito de *The Chosen*. *(Obs.: há o susto da cirurgia, mas tratado com leveza.)*
 
-### 2. Quando Chama o Coração (When Calls the Heart) · *série âncora*
+### 2. Maria, Mãe do Filho de Deus (2003) · *fé / família*
+- **Onde:** Netflix (`netflix_id: 70196240`) — **português nativo**
+- Um padre conta a história da Virgem Maria para uma menina enquanto ela espera
+  a mãe voltar. Brasileiro, classificação livre, com Padre Marcelo Rossi.
+- **Por quê:** fé familiar e tom mais caseiro; melhor aposta religiosa que
+  produções bíblicas longas e violentas.
+
+### 3. Tetra: Acreditar de Novo (2026) · *Brasil / presente / inspiração*
+- **Onde:** Netflix (`netflix_id: 82032990`) — **português nativo**
+- Documentário brasileiro sobre a Seleção de 1994, com entrevistas e imagens
+  dos próprios jogadores.
+- **Por quê:** atual, brasileiro, nostálgico sem ser triste; bom para puxar
+  conversa com memórias boas.
+
+### 4. The Middle · *família / sitcom*
+- **Onde:** Netflix (`netflix_id: 70143859`) — **áudio em português**
+- Frankie Heck e o marido Mike tentam equilibrar trabalho e casa enquanto criam
+  três filhos no interior dos EUA.
+- **Por quê:** sitcom familiar, honesta e agradável; deve ser um teste mais
+  seguro que *Grace and Frankie* por não abrir com divórcio/sexualidade.
+
+### 5. As Aventuras Escolhidas · *The Chosen / animação cristã*
+- **Onde:** Netflix (`netflix_id: 82666465`) · Prime Video (`prime_video:
+  0FJQKV6ZATP26APZZAXTFNH9IY`) — **áudio em português**
+- Abby e Josué conhecem Jesus na antiga Galileia e aprendem sobre fé e amizade
+  em episódios curtos.
+- **Por quê:** deriva diretamente de *The Chosen*, tem classificação livre e
+  formato curto. **Atenção:** é animação infantil; manter porque ela gosta de
+  *The Chosen*, mas observar se o desenho a prende.
+
+### 6. Davi: Nasce um Rei · *animação bíblica / musical*
+- **Onde:** Netflix (`netflix_id: 82836255`) — **áudio em português**
+- Jovem pastor destinado a se tornar rei enfrenta inimigos poderosos guiado
+  pela fé.
+- **Por quê:** fé, animação e música, com história bíblica conhecida. **Atenção:**
+  tem conflito/Golias; observar se fica empolgante sem pesar.
+
+### 7. Testamento: A História de Moisés · *documentário bíblico*
+- **Onde:** Netflix (`netflix_id: 81341795`) — **áudio em português**
+- Série documental em 3 episódios sobre Moisés como príncipe, profeta e líder.
+- **Por quê:** tema bíblico conhecido e formato curto. **Atenção:** inclui
+  escravidão, confronto com faraó e as pragas; pode ser mais pesado que
+  *As Aventuras Escolhidas* e *Davi: Nasce um Rei*.
+
+### 8. Noé · *épico bíblico*
+- **Onde:** Netflix (`netflix_id: 70295061`) — **áudio em português**
+- Noé recebe uma visão divina de uma inundação apocalíptica e constrói a arca.
+- **Por quê:** história bíblica conhecida. **Atenção:** é drama épico 14 anos,
+  com fim do mundo/conflito; testar em dias bons, não como conforto leve.
+
+### 9. Um Pai em Apuros · *comédia brasileira / família*
+- **Onde:** Netflix (`netflix_id: 82887570`) — **português nativo**
+- Mãe cansada tira férias e deixa o marido cuidando das crianças, virando caos
+  doméstico de comédia.
+- **Por quê:** brasileiro, familiar e leve; bom contraponto aos títulos bíblicos.
+
+---
+
+## 🪑 Reserva (para variar a rotação)
+
+Trocas fáceis quando quiser renovar — todos verificados disponíveis:
+
+### Quando Chama o Coração (When Calls the Heart) · *série âncora*
 - **Onde:** Prime Video BR — **dublado pt-BR** *(sem ID Netflix; `gti` via ADB depois)*
 - Uma professora troca a cidade grande por um vilarejo de fronteira no início do século XX. Amizade, fé, comunidade e romance gentil, sempre com final reconfortante.
-- **Por quê:** série Hallmark longa e aconchegante — perfeita para voltar um pouquinho a cada dia.
+- **Por quê:** série Hallmark longa e aconchegante — perfeita para voltar um
+  pouquinho a cada dia. *(Ainda depende de fonte tocável/assinatura.)*
 
-### 3. Meu Passado Me Condena: O Filme (2013) · *comédia brasileira*
+### Meu Passado Me Condena: O Filme (2013) · *comédia brasileira*
 - **Onde:** Netflix (`netflix_id: 80076609`) · Globoplay — **português nativo**
 - Recém-casados embarcam num cruzeiro de lua de mel rumo à Europa e dão de cara com um ex e uma antiga paixão a bordo. Pura confusão e risada, final feliz.
-- **Por quê:** comédia leve, ensolarada, sem peso — Sessão da Tarde clássica.
+- **Por quê:** comédia leve, ensolarada, sem peso — mas deixar em reserva por
+  enquanto, porque a rejeição a *Romeu e Julieta* pode indicar saturação de
+  comédia romântica/conjugal.
 
-### 4. O Casamento de Romeu e Julieta (2005) · *romance*
-- **Onde:** Netflix (`netflix_id: 70086050`) · Prime Video BR — **português nativo**
-- Apesar do nome, **não é tragédia**: comédia romântica de Bruno Barreto sobre Julieta (filha de palmeirense fanático) e Romeu, corintiano que finge torcer pelo rival por amor. Termina em casamento e bebê a caminho.
-- **Por quê:** rom-com brasileira calorosa com final feliz garantido.
-
-### 5. Lisboa — Passeio por Alfama (4K) · *Portugal no presente*
+### Lisboa — Passeio por Alfama (4K) · *Portugal no presente*
 - **Onde:** YouTube (`youtube_id: qVw_SkV797M`) — sem narração, **não precisa ler nada**
 - Passeio tranquilo pelas ruelas, escadarias e azulejos do bairro mais antigo de Lisboa, em 4K, só com som ambiente.
 - **Por quê:** Portugal de hoje, calmo e bonito — puxa ela para o presente sem nenhum drama.
 
-### 6. Funchal, Madeira (4K Walking Tour) · *Portugal no presente*
+### Funchal, Madeira (4K Walking Tour) · *Portugal no presente*
 - **Onde:** YouTube (`youtube_id: z6qk4QcNnCg`) — sem narração
 - Caminhada serena pela capital ensolarada da ilha da Madeira: flores, calçada portuguesa e o Atlântico ao fundo.
 - **Por quê:** outra paisagem portuguesa (ilha), luminosa e relaxante.
 
-### 7. Olhão, Algarve (4K Walking Tour) · *Portugal no presente*
+### Olhão, Algarve (4K Walking Tour) · *Portugal no presente*
 - **Onde:** YouTube (`youtube_id: lQxWeAZSHvs`) — sem narração
 - Vila de pescadores no Algarve: mercado de peixe, orla da Ria Formosa e casario tradicional.
 - **Por quê:** o charme do interior português, bem diferente das capitais — variedade de cenário.
@@ -66,30 +130,34 @@ precisarão de uma consulta via ADB no Fire TV antes de virar botão.
 Você disse que pagaria o Globoplay se valesse a pena. **Estes três valem** — e
 são os que mais "cara de casa" têm para ela:
 
-### 8. Chocolate com Pimenta (2003) · *novela de conforto / série âncora*
+### Chocolate com Pimenta (2003) · *novela de conforto / série âncora*
 - **Onde:** Globoplay — **português nativo** ⚠️ *requer assinatura*
 - Comédia romântica de época (anos 1920) de Walcyr Carrasco numa cidadezinha famosa por chocolates e doces. Leve, divertida, final feliz — são 209 capítulos, ótimo para o dia a dia.
 - **Por quê:** novela brasileira gostosa e calorosa, exatamente o tom dela.
 
-### 9. Tá Escrito (2023) · *romance no presente*
+### Tá Escrito (2023) · *romance no presente*
 - **Onde:** Globoplay — **português nativo** ⚠️ *requer assinatura*
 - Alice (Larissa Manoela) ganha um caderno mágico em que tudo o que escreve para os signos vira realidade e vira sensação como astróloga. Comédia romântica atual e leve.
 - **Por quê:** rom-com brasileira **do presente**, com atriz muito querida.
 
-### 10. É de Casa (ao vivo, Globo aos sábados) · *presente / acolhimento*
+### É de Casa (ao vivo, Globo aos sábados) · *presente / acolhimento*
 - **Onde:** Globoplay — canal **Globo ao vivo** (`globoplay: globo`) — **português nativo** ⚠️ *requer assinatura*
 - Programa matinal de variedades com clima de casa: culinária, jardinagem, artesanato, música e conversas gentis.
 - **Por quê:** conteúdo atual e caloroso que a traz para o hoje, sem peso. *(Único senão: tem alguns blocos jornalísticos leves.)*
 
 ---
 
-## 🪑 Reserva (para variar a rotação)
-
-Trocas fáceis quando quiser renovar — todos verificados disponíveis:
+## 🪑 Outras reservas pesquisadas
 
 - **Sintra & Quinta da Regaleira (4K)** — YouTube `6kA6n9-5oJc` — jardins encantados de Sintra.
 - **Lisboa 2025 (4K Walking Tour)** — YouTube `rAdDPOIzRlo` — Lisboa atual, bondinhos e praças.
 - **Canal "Portugal Walking Tour"** — YouTube `aqevs6jLdJI` (e o canal `@portugalwalkingtour`) — fonte farta de novos passeios.
+- **Ricos de Amor** — Netflix `81047512` — rom-com brasileira leve, mas deixar
+  em reserva porque a rejeição a *Romeu e Julieta* pode ser rejeição ao gênero.
+- **Um Natal Cheio de Graça** — Netflix `81443737` — comédia natalina brasileira;
+  reservar para dezembro ou para teste manual, pois o humor pode ser espalhafatoso.
+- **Evidências do Amor** — Netflix `82686555` — comédia romântica brasileira de
+  2024; reservar, porque começa com abandono no altar.
 - **A Vida de Jesus Cristo (filme completo dublado)** — YouTube `dfT8yHUyZWE` ou `YdK6g9gY028` — *opção bíblica, **sua decisão**: inclui a crucificação (como em The Chosen), pode ser bonita e familiar para ela ou pesada demais — avalie os primeiros minutos.*
 - **Patrick: Aprendendo a Amar (2018)** — comédia britânica fofa com um pug; **fora do streaming BR hoje** — fique de olho se voltar.
 
@@ -100,6 +168,9 @@ Trocas fáceis quando quiser renovar — todos verificados disponíveis:
 Para você entender a curadoria e não estranhar ausências óbvias:
 
 - **Minha Mãe é uma Peça / Os Farofeiros / Loucas pra Casar** — comédias nacionais, mas humor pesado/adulto; *Loucas pra Casar* abre com tentativa de suicídio (grave dado a depressão dela).
+- **O Casamento de Romeu e Julieta** — testado e rejeitado por ela; remover da
+  rotação, apesar de ser leve no papel.
+- **Mazzaropi / filmes centrados em Mazzaropi** — não adicionar por enquanto.
 - **Fátima**, **Jesus** (novela Record), **A Bíblia**, **Fé Para o Impossível**, **Milagres do Paraíso**, **Eu Só Posso Imaginar** — fé que ela gosta, **mas** o núcleo é sofrimento/violência/doença/trauma. Pesados demais.
 - **Glória** (Netflix Portugal) — é português, porém thriller de espionagem tenso da Guerra Fria.
 - **Cantando na Chuva**, **A Noviça Rebelde**, **Sissi** — clássicos lindos, mas **sem disponibilidade dublada confirmada** no Brasil hoje (ou sem dublagem pt-BR).
@@ -108,9 +179,14 @@ Para você entender a curadoria e não estranhar ausências óbvias:
 
 ## 🔌 Notas para ligar ao botão b6 (depois)
 
-- O b6 hoje é `method = "glob"` sobre arquivos locais. Para tocar destes serviços, cada título precisa do **método certo**: `netflix` (usa `netflix_id`), `prime_video` (usa `gti` — **só via ADB**), `youtube` (usa `youtube_id`), `globoplay` (usa slug/canal).
-- Um botão liga a **um** método só. Para misturar serviços num rodízio diário, vamos precisar de um pequeno despacho por título (mapear cada título ao seu método+param). Fica para a próxima sessão.
-- **Prontos para wiring imediato** (têm ID público): os YouTube (5, 6, 7 + reserva), os Netflix (1, 3, 4) e o Globoplay ao vivo (10). **Pendentes de ADB:** Prime sem `gti` (Quando Chama o Coração).
+- O b6 deste worktree já é `method = "playlist"`: o controller escolhe um item
+  por dia e despacha para o método real (`netflix`, `youtube`, etc.).
+- Itens atuais do b6 em `config.toml`: `70295734`, `70196240`, `82032990`,
+  `70143859`, `82666465`, `82836255`, `81341795`, `70295061`, `82887570`.
+- Prime Video usa IDs de detalhe públicos quando disponíveis; ainda vale
+  testar na TV porque alguns títulos podem exigir assinatura/canal add-on.
+- Para incluir Globoplay VOD, ainda falta suporte a deep link de VOD; o método
+  atual abre canal ao vivo por slug.
 
 ---
 

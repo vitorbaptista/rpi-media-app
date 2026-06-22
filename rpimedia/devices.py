@@ -31,13 +31,14 @@ KNOWN_METHODS = frozenset(
         "volume_down",
         "pause",
         "set_hearing_aids",
+        "playlist",
     }
 )
 
 _PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
     "prime_video": re.compile(
-        r"^amzn1\.dv\.gti\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
-        r"[0-9a-f]{4}-[0-9a-f]{12}$"
+        r"^(?:amzn1\.dv\.gti\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+        r"[0-9a-f]{4}-[0-9a-f]{12}|[A-Z0-9]{20,32})$"
     ),
     "netflix": re.compile(r"^\d+$"),
     "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
@@ -1018,6 +1019,14 @@ def build_device(config: Dict[str, Any]) -> Device:
     raise ValueError(f"unknown device type: {dev_type!r}")
 
 
+def split_playlist_item(item: str) -> Tuple[str, str]:
+    """Split a ``"<submethod>:<subparam>"`` playlist item on the first colon."""
+    submethod, sep, subparam = item.partition(":")
+    if not sep:
+        raise ValueError(f"playlist item {item!r} is missing a ':' separator")
+    return submethod, subparam
+
+
 def validate_config(config: Dict[str, Any], device: Device) -> None:
     """Check every configured remote key's method + params. Raise on any issue."""
     keys = config.get("remote", {}).get("keys", {})
@@ -1025,18 +1034,26 @@ def validate_config(config: Dict[str, Any], device: Device) -> None:
         method = key_config.get("method")
         if method not in KNOWN_METHODS:
             raise ValueError(f"key '{key_name}' uses unknown method: {method!r}")
-        if method not in device.supported_methods:
+        if method not in device.supported_methods and method != "playlist":
             logger.warning(
                 f"key '{key_name}' uses method '{method}' which is not "
                 f"supported by {device.__class__.__name__}; pressing this "
                 f"button will be a no-op"
             )
-        validator = _PARAM_VALIDATORS.get(method)
-        if validator is None:
-            continue
         params = key_config.get("params", [])
         if isinstance(params, str):
             params = [params]
+
+        if method == "playlist":
+            if not params:
+                raise ValueError(f"key '{key_name}': playlist has no items")
+            for item in params:
+                _validate_playlist_item(key_name, item)
+            continue
+
+        validator = _PARAM_VALIDATORS.get(method)
+        if validator is None:
+            continue
         for param in params:
             if not isinstance(param, str) or not validator.match(param):
                 raise ValueError(
@@ -1051,3 +1068,31 @@ def validate_config(config: Dict[str, Any], device: Device) -> None:
                 f"binding {binding_key!r} -> {binding_value!r} references "
                 f"a key config that does not exist"
             )
+
+
+def _validate_playlist_item(key_name: str, item: Any) -> None:
+    """Validate one ``"<submethod>:<subparam>"`` playlist item structurally."""
+    if not isinstance(item, str):
+        raise ValueError(f"key '{key_name}': playlist item {item!r} is not a string")
+    try:
+        submethod, subparam = split_playlist_item(item)
+    except ValueError:
+        raise ValueError(
+            f"key '{key_name}': playlist item {item!r} does not match the "
+            f"expected '<submethod>:<subparam>' format"
+        )
+    if submethod not in KNOWN_METHODS:
+        raise ValueError(
+            f"key '{key_name}': playlist item {item!r} uses unknown "
+            f"submethod: {submethod!r}"
+        )
+    if submethod == "playlist":
+        raise ValueError(
+            f"key '{key_name}': playlist item {item!r} may not nest 'playlist'"
+        )
+    validator = _PARAM_VALIDATORS.get(submethod)
+    if validator is not None and not validator.match(subparam):
+        raise ValueError(
+            f"key '{key_name}': playlist subparam {subparam!r} for submethod "
+            f"'{submethod}' does not match expected format"
+        )

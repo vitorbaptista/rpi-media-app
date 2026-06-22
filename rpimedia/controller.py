@@ -2,6 +2,7 @@ import logging
 import random
 import glob
 import os
+import datetime
 import asyncio
 from typing import Any, Dict, List, Optional
 from . import devices
@@ -11,6 +12,15 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
+
+
+def _daily_index(now: Optional[datetime.datetime] = None) -> int:
+    """Day-of-year rotation index, mirroring play_sessao_da_tarde.py."""
+    now = now or datetime.datetime.now()
+    idx = now.timetuple().tm_yday
+    if now.hour > 12:
+        idx += 1
+    return idx
 
 
 class Controller:
@@ -83,6 +93,11 @@ class Controller:
     ) -> Optional[asyncio.subprocess.Process]:
         params = data["params"]
 
+        # "playlist" is a controller-level dispatcher. It rotates through
+        # entries like "netflix:70295734" and then calls the real method.
+        if method == "playlist":
+            return await self._handle_playlist(params)
+
         if method not in self.device.supported_methods:
             logger.warning(
                 f"method {method!r} is not supported by "
@@ -147,6 +162,32 @@ class Controller:
             case _:
                 logger.debug(f"Unknown method: {method}")
                 return None
+
+    async def _handle_playlist(
+        self, params: List[str]
+    ) -> Optional[asyncio.subprocess.Process]:
+        if not params:
+            logger.warning("playlist has no params; nothing to play")
+            return None
+
+        sorted_params = sorted(params)
+        chosen = sorted_params[_daily_index() % len(sorted_params)]
+
+        try:
+            submethod, subparam = devices.split_playlist_item(chosen)
+        except ValueError:
+            logger.warning(f"playlist item {chosen!r} is malformed (no ':'); skipping")
+            return None
+
+        if submethod == "playlist":
+            logger.warning(f"playlist item {chosen!r} nests 'playlist'; skipping")
+            return None
+
+        logger.debug(f"playlist chose {submethod!r} with param {subparam!r}")
+        return await self._handle_method_call(
+            submethod,
+            {"params": [subparam], "max_enqueued_videos": 0},
+        )
 
     async def play_globs(self, glob_paths: List[str]) -> Optional[asyncio.subprocess.Process]:
         logger.debug(f"Playing globs in {glob_paths}")
