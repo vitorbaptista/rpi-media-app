@@ -7,14 +7,13 @@ Sets volume to 0 if current time is before day_start_time, otherwise sets to spe
 import click
 import logging
 import subprocess
-import time
 from datetime import datetime
 
 # Setup logging globally
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -34,10 +33,12 @@ def parse_time(time_str):
     """
     try:
         # Parse the time string and extract just the time component
-        parsed = datetime.strptime(time_str, '%H:%M')
+        parsed = datetime.strptime(time_str, "%H:%M")
         return parsed.time()
     except ValueError:
-        raise ValueError(f"Invalid time format: {time_str}. Expected HH:MM in 24-hour format.")
+        raise ValueError(
+            f"Invalid time format: {time_str}. Expected HH:MM in 24-hour format."
+        )
 
 
 def set_volume(volume_level):
@@ -50,16 +51,11 @@ def set_volume(volume_level):
     Returns:
         bool: True if volume was set successfully, False otherwise
     """
-    cmd = ['catt', 'volume', str(volume_level)]
+    cmd = ["catt", "volume", str(volume_level)]
     logger.debug(f"Running: {' '.join(cmd)}")
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
         if result.returncode == 0:
             logger.info(f"Volume set to {volume_level}")
@@ -71,7 +67,7 @@ def set_volume(volume_level):
             return False
 
     except subprocess.TimeoutExpired:
-        logger.error(f"Timeout (attempt {attempt}/{max_attempts})")
+        logger.error("Timeout while setting volume")
         return False
 
     except FileNotFoundError:
@@ -85,10 +81,10 @@ def set_volume(volume_level):
 
 @click.command()
 @click.argument(
-    'day-start-time',
+    "day-start-time",
 )
 @click.argument(
-    'volume',
+    "volume",
     type=click.IntRange(0, 100),
 )
 def main(day_start_time, volume):
@@ -112,10 +108,14 @@ def main(day_start_time, volume):
     is_before_day_start = now < day_start
 
     if is_before_day_start:
-        logger.info(f"Current time {now.strftime('%H:%M')} is before {day_start.strftime('%H:%M')} - setting volume to 0")
+        logger.info(
+            f"Current time {now.strftime('%H:%M')} is before {day_start.strftime('%H:%M')} - setting volume to 0"
+        )
         volume_to_set = 0
     else:
-        logger.info(f"Current time {now.strftime('%H:%M')} is after {day_start.strftime('%H:%M')} - setting volume to {volume}")
+        logger.info(
+            f"Current time {now.strftime('%H:%M')} is after {day_start.strftime('%H:%M')} - setting volume to {volume}"
+        )
         volume_to_set = volume
 
     # Set the volume
@@ -126,5 +126,5 @@ def main(day_start_time, volume):
         exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

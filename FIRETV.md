@@ -258,23 +258,32 @@ Warning: Activity not started, its current task has been brought to the front
 
 ## Keep-awake configuration
 
-For unattended playback (the device must resume on schedule without a remote press), disable sleep but keep the screensaver:
+For unattended playback (the device must resume on schedule without a remote
+press), disable both sleep and the screensaver:
+
+```bash
+make setup_firetv
+```
+
+Equivalent raw adb commands:
 
 ```bash
 # Disable sleep (HDMI signal stays up; TV won't blank out)
 adb -s "$IP:5555" shell settings put secure sleep_timeout 0
 
-# Keep screensaver at default 5 min (or set explicitly)
-adb -s "$IP:5555" shell settings put system screen_off_timeout 300000
+# Effectively disable the screensaver. 0 does NOT work for screen_off_timeout.
+adb -s "$IP:5555" shell settings put system screen_off_timeout 2147460000
 ```
-
-To fully disable the screensaver as well, use `2147460000` (max ~24 days) instead of `300000` — `0` does NOT work for `screen_off_timeout`.
 
 Defaults on this Cube: `sleep_timeout=1200000` (20 min), `screen_off_timeout=300000` (5 min). Both settings persist across reboots.
 
 Why split: `screen_off_timeout` triggers the Amazon screensaver overlay (device stays awake, TV stays on). `sleep_timeout` triggers actual suspend — HDMI drops, TV typically powers off on no-signal, and waking it back up requires a remote press or a (less reliable) CEC handshake. Disabling only `sleep_timeout` is enough for scheduled morning resume.
 
-In-app playback by Prime Video / Netflix / YouTube already holds a wake lock during active playback, so neither timer fires while a video is rolling. The timers only matter when the launcher is foregrounded with no input.
+Important observed failure, 2026-06-20: Fire TV can remain in dream/screensaver
+mode while `ResumedActivity` and `dumpsys media_session` still point at YouTube.
+In that state, `rpimedia is_playing` can report playing even though the visible
+screen is only the Amazon screensaver. Disabling the screensaver avoids this
+failure mode.
 
 ## Things not yet explored
 

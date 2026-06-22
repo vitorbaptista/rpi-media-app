@@ -9,6 +9,8 @@ dependencies = [
     "catt>=0.12.13",
     "click>=8.1.8",
     "evdev>=1.7.0",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
 ]
 
 [project.scripts]
@@ -24,8 +26,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["rpimedia"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.1.0",
     "pyright[nodejs]>=1.1.396",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.4.0",
 ]

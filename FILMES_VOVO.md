@@ -5,6 +5,42 @@ Disponibilidade e áudio checados em páginas oficiais/Netflix BR em
 **2026-06-22**; os itens já antigos também tinham validação ao vivo em
 junho/2026. Catálogos mudam — reconfirme antes de fixar de vez.
 
+## ✅ Status da execução (2026-06-14)
+
+O handoff abaixo foi executado. Resumo do que ficou pronto e do que travou:
+
+- **b6 agora é um rodízio multi-serviço** (`method = "playlist"`): escolhe **um
+  título por dia** (rotação por dia-do-ano) e despacha para o serviço certo de
+  cada item. Substituiu o `glob` antigo. É um botão de **conteúdo sob demanda
+  (filmes/passeios), SEM canal ao vivo**. **6 itens, todos testados tocando na
+  TV:**
+  - `youtube` × 3 — Lisboa/Alfama, Funchal, Olhão (passeios de Portugal)
+  - `netflix` × 3 — O Casamento de Romeu e Julieta (`70086050`), Meu Passado Me
+    Condena (`80076609`), O Céu é de Verdade (`70295734`)
+- **Netflix (TAREFA A):** ✅ **toca sozinho** pelo deep link atual — o medo de
+  parar no título/seletor **não se confirmou**. `play_netflix` **não precisou de
+  ajuste**.
+- **Prime — Quando Chama o Coração (TAREFA B):** ❌ **fora do b6.** Na Prime BR
+  o título é do **canal pago Lionsgate+** (selo/coroa dourada); não toca sem
+  assinar esse add-on, então o `gti` não ajudaria. Reavaliar se assinar
+  Lionsgate+ ou achar outra fonte dublada.
+- **Globoplay (TAREFA C):** ✅ **Conta relogada** (ativada pelo celular) — o
+  `globoplay:globo` ao vivo foi testado tocando ponta a ponta, **mas ficou de
+  fora do b6 a pedido**: o b6 é um botão de **filmes/passeios**, e canal ao vivo
+  toca a grade atual da Globo (imprevisível, inclui jornalismo). O relogin
+  também deve ter **destravado o b4 (Canal Futura)**. Os VODs #8/#9 seguem fora
+  (sem deep-link VOD no `play_globoplay`).
+- **Deploy:** o `playlist` + a config foram implementados e testados **a partir
+  da `luna` (máquina de dev)**, mas **não dá pra fazer deploy daqui** para o RPi
+  de produção (`ssh rpi` falha na verificação de host key). **O deploy para o
+  RPi (rsync + restart do `rpimedia.service`) fica com você.**
+- **Como funciona o rodízio:** a ordem no `config.toml` não importa — o handler
+  reordena com `sorted()` e indexa por dia-do-ano (mesma lógica do
+  `play_sessao_da_tarde.py`), então a escolha do dia é determinística.
+  `pytest`: 21 testes ✅; `pyright`: limpo; `code-reviewer`: limpo.
+
+---
+
 ## 🧭 Regras de curadoria (o perfil dela)
 
 Senhora de ~94 anos, brasileira, em depressão. O objetivo é **conforto**:
@@ -191,6 +227,13 @@ Para você entender a curadoria e não estranhar ausências óbvias:
 ---
 
 ## 🤖 Próxima sessão — prompt para o Claude (rodar com a TV livre)
+
+> ✅ **JÁ EXECUTADO em 2026-06-14** — ver "Status da execução" no topo. O bloco
+> abaixo fica como registro. O que sobrou para uma próxima rodada: (a) **deploy
+> para o RPi**; (b) decidir sobre o **Prime/Lionsgate+** para "Quando Chama o
+> Coração"; (c) se quiser, adicionar suporte a **VOD do Globoplay** (#8/#9).
+> *(Globoplay já foi relogado; `globoplay:globo` ao vivo foi testado mas ficou
+> fora do b6 a pedido — b6 é só filmes/passeios, sem canal ao vivo.)*
 
 > **Como usar:** abra uma sessão do Claude Code neste repo **com a TV do Fire TV
 > (`192.168.15.174`) livre** e diga *"execute o handoff do FILMES_VOVO.md"*.

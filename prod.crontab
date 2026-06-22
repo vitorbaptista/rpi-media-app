@@ -4,6 +4,8 @@
 */3 6-18 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make ensure_video_is_playing") 2>&1 | systemd-cat -t rpimedia-cron
 */3 0-6 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make mute_before_dawn") 2>&1 | systemd-cat -t rpimedia-cron
 0 11,18 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_musica") 2>&1 | systemd-cat -t rpimedia-cron
-0 10,16 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_sessao_da_tarde") 2>&1 | systemd-cat -t rpimedia-cron
+0 10 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_sessao_da_tarde") 2>&1 | systemd-cat -t rpimedia-cron
+0 16 * * 2,4,6 (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_sessao_da_tarde") 2>&1 | systemd-cat -t rpimedia-cron
+0 16 * * 0,1,3,5 (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_filmes_vovo") 2>&1 | systemd-cat -t rpimedia-cron
 20 14 * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make play_viagens_brasil") 2>&1 | systemd-cat -t rpimedia-cron
 */3 * * * * (cd /home/vitor/Projetos/rpi-media && /bin/bash -lc "make hearing_aids_schedule") 2>&1 | systemd-cat -t rpimedia-cron

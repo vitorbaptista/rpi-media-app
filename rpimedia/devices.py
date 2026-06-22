@@ -37,8 +37,8 @@ KNOWN_METHODS = frozenset(
 
 _PARAM_VALIDATORS: Dict[str, re.Pattern[str]] = {
     "prime_video": re.compile(
-        r"^(?:amzn1\.dv\.gti\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
-        r"[0-9a-f]{4}-[0-9a-f]{12}|[A-Z0-9]{20,32})$"
+        r"^amzn1\.dv\.gti\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+        r"[0-9a-f]{4}-[0-9a-f]{12}$"
     ),
     "netflix": re.compile(r"^\d+$"),
     "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
@@ -95,6 +95,15 @@ class Device(ABC):
     async def is_playing(self) -> bool:
         logger.warning(f"{self.__class__.__name__} does not support is_playing")
         return False
+
+    async def current_media(self) -> Optional[Dict[str, Optional[str]]]:
+        """Return what's on screen now, for the external play log.
+
+        Shape: ``{"app": <name or None>, "state": playing|paused|idle}``.
+        Returns None when the device can't be inspected. Default:
+        unsupported.
+        """
+        return None
 
     async def resume(self) -> bool:
         """Resume a paused media session in place. Return True iff resumed."""
@@ -303,6 +312,16 @@ class FireTVDevice(Device):
         VLC_PACKAGE,
         GLOBOPLAY_PACKAGE,
     )
+
+    # Friendly names for the play log, keyed by package. Mirrors the method
+    # names used on the command side so the two sources line up.
+    _APP_NAMES: Dict[str, str] = {
+        PRIME_VIDEO_PACKAGE: "prime_video",
+        YOUTUBE_PACKAGE: "youtube",
+        NETFLIX_PACKAGE: "netflix",
+        GLOBOPLAY_PACKAGE: "globoplay",
+        VLC_PACKAGE: "video",
+    }
 
     # MediaSession PlaybackState values that count as "actively playing".
     # 3=playing, 6=buffering — buffering means the foregrounded media app
@@ -681,6 +700,41 @@ class FireTVDevice(Device):
                     )
                 return True
             prior_observations.append((state, foreground))
+        # Idle decision: log why. Genuine idle (launcher foregrounded) and
+        # sustained pauses are common and stay at info. The suspicious case —
+        # a media app foregrounded yet read not-playing and not cleanly paused
+        # — is the signature of a misparse (e.g. dumpsys listing a stale
+        # duplicate session ahead of the live one). Capture the raw
+        # media_session dump there so the cause can be confirmed from prod logs
+        # instead of guessed at. The extra adb call only fires in that rare
+        # case, never on normal idle ticks.
+        media_observations = [
+            (state, fg)
+            for state, fg in prior_observations
+            if fg and any(pkg in fg for pkg in self._MEDIA_PACKAGES)
+        ]
+        # A genuine sustained pause (state=2 — e.g. "are you still watching?")
+        # is benign, resume() already tried to clear it, and it persists across
+        # many ticks, so don't dump the full session every time. A media app
+        # foregrounded but read as stopped/none/error or unparseable (None) is
+        # the misparse signature worth capturing raw for diagnosis.
+        suspicious = bool(media_observations) and any(
+            state != 2 for state, _ in media_observations
+        )
+        if suspicious:
+            logger.warning(
+                "is_playing=idle but a media app was foregrounded across "
+                f"{self.IS_PLAYING_CONFIRMATIONS} attempts; "
+                f"observations={prior_observations}"
+            )
+            raw = await self._shell_capture("dumpsys media_session")
+            if raw is not None:
+                logger.warning(
+                    "dumpsys media_session at idle decision (for diagnosis):\n%s",
+                    raw,
+                )
+        else:
+            logger.info(f"is_playing=idle; observations={prior_observations}")
         return False
 
     async def resume(self) -> bool:
@@ -726,6 +780,30 @@ class FireTVDevice(Device):
         if not _foreground_is_media_app(activities, self._MEDIA_PACKAGES):
             return None, foreground
         return raw_state, foreground
+
+    async def current_media(self) -> Optional[Dict[str, Optional[str]]]:
+        """Snapshot of the foregrounded media app and playback state.
+
+        ``state`` is None from ``_session_state_with_foreground`` whenever a
+        media app is *not* foregrounded, which we report as idle (with
+        app=None) — that's the signal that someone left playback for the
+        launcher. A 2 is a sustained pause; 3/6 (see ``_PLAYING_STATES``)
+        are playing/buffering.
+        """
+        state, foreground = await self._session_state_with_foreground()
+        app: Optional[str] = None
+        if foreground:
+            for package, name in self._APP_NAMES.items():
+                if package in foreground:
+                    app = name
+                    break
+        if state in self._PLAYING_STATES:
+            label = "playing"
+        elif state == 2:
+            label = "paused"
+        else:
+            label = "idle"
+        return {"app": app, "state": label}
 
     async def _start(
         self,
@@ -950,6 +1028,14 @@ def _foreground_is_media_app(
 _MEDIA_BUTTON_SESSION_PATTERN = re.compile(r"Media button session is (.+?) \(userId=")
 
 
+# Matches a Sessions Stack header line ("<tag> <pkg>/<tag> (userId="). Used to
+# find where one session block ends and the next begins. Anchored at line start
+# (MULTILINE) and requires a "<pkg>/<tag>" component, so intra-block
+# callback/controller lines — which carry "(userId=" but sit deeper and rarely
+# precede the PlaybackState line — aren't mistaken for the next header.
+_SESSION_HEADER_TAIL = re.compile(r"^\s*(?:\S+ )*\S+/\S* \(userId=", re.MULTILINE)
+
+
 def _active_session_state(dumpsys_output: str) -> Optional[int]:
     """Return the playback state of the media-button session.
 
@@ -967,25 +1053,62 @@ def _active_session_state(dumpsys_output: str) -> Optional[int]:
     if active_match is None:
         return None
     active_id = active_match.group(1)
-    # The Sessions Stack header for this session is "<tag> <pkg>/<tag>
+    # The Sessions Stack header for each session is "<tag> <pkg>/<tag>
     # (userId=N)", so we look for `<active_id> (userId=` *after* the line
-    # that named the session. The first state=PlaybackState following that
-    # header is the active session's state — every session block emits its
-    # state line before any nested sub-sections.
+    # that named the active session. The first PlaybackState following a
+    # header is that block's state — every session block emits its state
+    # line before any nested sub-sections.
+    #
+    # The active component can legitimately own MORE than one block: an app
+    # that creates a fresh MediaSession per playback (ExoPlayer-based apps
+    # like YouTube) leaves the prior session lingering at a stale state
+    # (1=stopped, 0=none) listed *before* the live one (the stack is sorted
+    # "top of stack at the end"). Reading only the first match would report
+    # the stale state and falsely fall back, so we scan every block owned by
+    # the active component and let a playing state win — mirroring the
+    # conservative-playing intent of is_playing. Restricting to the active
+    # component still excludes unrelated Bluetooth/TTS/other-app sessions
+    # that report state=3 indefinitely.
     block_marker = f"{active_id} (userId="
     after_announcement = dumpsys_output[active_match.end() :]
-    block_idx = after_announcement.find(block_marker)
-    if block_idx < 0:
+    states: List[int] = []
+    search_from = 0
+    while True:
+        block_idx = after_announcement.find(block_marker, search_from)
+        if block_idx < 0:
+            break
+        # Bound the block to its own header → next session header so a block
+        # with no PlaybackState doesn't borrow the following session's state.
+        # A header carries a "<pkg>/<tag> (userId=" component; intra-block
+        # callback/controller lines also contain "(userId=" but no "/" before
+        # it, so bounding on the bare substring could truncate the block
+        # before its state line. _SESSION_HEADER_TAIL keys on the "/...(userId="
+        # shape to skip those.
+        header_end = block_idx + len(block_marker)
+        next_header = _SESSION_HEADER_TAIL.search(after_announcement, header_end)
+        next_idx = next_header.start() if next_header else -1
+        block_text = (
+            after_announcement[block_idx:next_idx]
+            if next_idx >= 0
+            else after_announcement[block_idx:]
+        )
+        state_match = _PLAYBACK_STATE_PATTERN.search(block_text)
+        if state_match is not None:
+            state = int(state_match.group(1))
+            if state in FireTVDevice._PLAYING_STATES:
+                return state
+            states.append(state)
+        search_from = header_end
+    if not states:
         logger.debug(
             f"media_session announced active={active_id!r} but no matching "
-            "session block found; dumpsys format may have drifted"
+            "session block with a PlaybackState found; dumpsys format may "
+            "have drifted"
         )
         return None
-    block_text = after_announcement[block_idx:]
-    state_match = _PLAYBACK_STATE_PATTERN.search(block_text)
-    if state_match is None:
-        return None
-    return int(state_match.group(1))
+    # No block is playing; the top-of-stack (last) block is the most current
+    # for paused/idle detection (resume() keys on state==2).
+    return states[-1]
 
 
 def _extract_friendly_name(txt_blob: str) -> Optional[str]:
@@ -1020,7 +1143,12 @@ def build_device(config: Dict[str, Any]) -> Device:
 
 
 def split_playlist_item(item: str) -> Tuple[str, str]:
-    """Split a ``"<submethod>:<subparam>"`` playlist item on the first colon."""
+    """Split a ``"<submethod>:<subparam>"`` playlist item on the FIRST colon.
+
+    Subparams never legitimately contain a colon in this project, but
+    splitting on the first colon is the safe rule. Raises ValueError if
+    there is no colon at all.
+    """
     submethod, sep, subparam = item.partition(":")
     if not sep:
         raise ValueError(f"playlist item {item!r} is missing a ':' separator")
@@ -1035,6 +1163,8 @@ def validate_config(config: Dict[str, Any], device: Device) -> None:
         if method not in KNOWN_METHODS:
             raise ValueError(f"key '{key_name}' uses unknown method: {method!r}")
         if method not in device.supported_methods and method != "playlist":
+            # "playlist" is a controller-level dispatcher, not a device
+            # capability, so it never appears in supported_methods.
             logger.warning(
                 f"key '{key_name}' uses method '{method}' which is not "
                 f"supported by {device.__class__.__name__}; pressing this "
@@ -1087,6 +1217,8 @@ def _validate_playlist_item(key_name: str, item: Any) -> None:
             f"submethod: {submethod!r}"
         )
     if submethod == "playlist":
+        # A nested playlist would recurse forever at dispatch time
+        # (idx % 1 == 0 always re-picks the same item).
         raise ValueError(
             f"key '{key_name}': playlist item {item!r} may not nest 'playlist'"
         )

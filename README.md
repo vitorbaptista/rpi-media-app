@@ -61,6 +61,13 @@ type = "firetv"                        # "chromecast" (padrão) ou "firetv"
 # address = "192.168.15.174"           # opcional; se omitido, descobre via mDNS
 ```
 
+Para uso autônomo, configure o Fire TV para não dormir nem entrar em
+screensaver:
+
+```bash
+make setup_firetv
+```
+
 ### 4. Configure o mapeamento de teclas
 
 Edite o arquivo `config.toml` para mapear teclas aos comandos desejados:
@@ -98,6 +105,50 @@ sudo make setup
 Isso irá:
 - Instalar o serviço systemd
 - Configurar o crontab com as automações
+
+### 6. Configure o log de reprodução (opcional)
+
+Registra o que toca na tela ao longo do tempo em uma tabela do
+[Supabase](https://supabase.com). Como o RPi roda com sistema de arquivos
+somente leitura, o histórico vai para um banco remoto, não para um arquivo
+local. São duas fontes na mesma tabela:
+
+- **`command`**: o que o próprio app manda tocar (com `media_id` no formato
+  da `config.toml`, ex.: `netflix:82836255`, e a tecla/cron de origem).
+- **`observed`**: o que o `dumpsys` da Fire TV realmente reporta, gravado
+  apenas quando muda — captura também o que for tocado direto no aparelho.
+
+É totalmente *best-effort*: sem credenciais (ou com falha de rede) o log
+fica desligado em silêncio e **nunca** atrapalha a reprodução.
+
+1. Crie um projeto no Supabase. Na sua máquina de desenvolvimento, copie o
+   `.env.example` para `.env`, preencha `SUPABASE_URL` e um
+   `SUPABASE_ACCESS_TOKEN` (token pessoal em Account → Access Tokens) e
+   aplique o schema (via Management API, sem `psql`):
+
+   ```bash
+   make setup_supabase
+   ```
+
+   > A tabela precisa existir antes do primeiro insert: a data API
+   > (PostgREST) que o dispositivo usa só faz CRUD, não cria tabelas. O
+   > schema é idempotente, então dá para rodar de novo sem problema. Como
+   > alternativa, cole o `supabase_schema.sql` no SQL Editor do painel.
+
+2. No dispositivo, crie um `.env` (a partir do `.env.example`, fora do git)
+   apenas com as credenciais de REST:
+
+   ```bash
+   SUPABASE_URL=https://SEU-PROJETO.supabase.co
+   SUPABASE_KEY=CHAVE-ANON
+   ```
+
+   Use a **chave anon** com a política RLS de insert/select do
+   `supabase_schema.sql` — nunca a `service_role` —, assim uma chave vazada
+   no máximo adiciona ruído, sem reescrever ou apagar o histórico. O
+   `SUPABASE_ACCESS_TOKEN` (que é amplo, da conta) fica só no `.env` da
+   máquina de desenvolvimento (o `make deploy` não copia dotfiles), nunca
+   no RPi.
 
 ## 🎮 Uso
 

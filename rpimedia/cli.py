@@ -14,6 +14,7 @@ from . import devices
 from . import event_bus as eb
 from . import input_listener
 from . import ipc_listener
+from . import playlog
 
 
 # Configure logging to suppress asyncio debug messages
@@ -42,9 +43,7 @@ def start():
         config = _load_config()
         device = devices.build_device(config)
         devices.validate_config(config, device)
-        ctrl = controller.Controller(
-            config=config, event_bus=event_bus, device=device
-        )
+        ctrl = controller.Controller(config=config, event_bus=event_bus, device=device)
         listener = input_listener.InputListener(event_bus=event_bus)
         ipc_event_listener = ipc_listener.IPCListener(event_bus=event_bus)
 
@@ -136,10 +135,27 @@ def is_playing():
         config = _load_config()
         device = devices.build_device(config)
         try:
-            return await device.is_playing()
+            playing = await device.is_playing()
         except Exception:
             logging.exception("is_playing check failed; treating as idle")
-            return False
+            playing = False
+
+        # This cron tick is the only periodic device poll, so it doubles as
+        # the play log's observation point — it records change-only and so
+        # captures playback started directly on the device. Best-effort:
+        # never let logging affect the playback fallback decision.
+        try:
+            media = await device.current_media()
+            if media is not None:
+                await playlog.log_observed(
+                    config,
+                    app=media.get("app"),
+                    state=media.get("state") or "idle",
+                )
+        except Exception:
+            logging.debug("observed play log failed", exc_info=True)
+
+        return playing
 
     playing = asyncio.run(check())
     if playing:
@@ -226,9 +242,7 @@ def hearing_aids_schedule(window_start: str, window_end: str):
             )
             return True
 
-        logging.info(
-            f"hearing_aids_schedule: transition {last} -> {desired}"
-        )
+        logging.info(f"hearing_aids_schedule: transition {last} -> {desired}")
         success = await device.set_hearing_aids(desired == "on")
         if not success:
             logging.error(
@@ -249,9 +263,7 @@ def _parse_hhmm(s: str) -> dtime:
     try:
         return datetime.strptime(s, "%H:%M").time()
     except ValueError:
-        raise ValueError(
-            f"invalid time {s!r}: expected HH:MM in 24-hour format"
-        )
+        raise ValueError(f"invalid time {s!r}: expected HH:MM in 24-hour format")
 
 
 def _in_window(now: dtime, start: dtime, end: dtime) -> bool:
@@ -262,9 +274,7 @@ def _in_window(now: dtime, start: dtime, end: dtime) -> bool:
 
 
 def _hearing_aids_state_path() -> pathlib.Path:
-    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser(
-        "~/.local/state"
-    )
+    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
     return pathlib.Path(base) / "rpimedia" / "hearing_aids.state"
 
 
