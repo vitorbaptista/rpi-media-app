@@ -106,7 +106,6 @@ params = [
 [remote.keys.b6]
 method = "playlist"
 params = [
-    "netflix:70295734",      # O Céu é de Verdade
     "netflix:70196240",      # Maria, Mãe do Filho de Deus
     "netflix:82032990",      # Tetra: Acreditar de Novo
     "netflix:70143859",      # The Middle

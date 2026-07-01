@@ -54,6 +54,8 @@ quente, esperançoso, baixa carga emocional, sempre com final feliz — clima de
 - ❌ **Ela não gostou de *O Casamento de Romeu e Julieta***. Tratar como
   sinal contra comédia romântica barulhenta/centrada em rivalidade; não
   recolocar no b6 sem novo teste humano.
+- ❌ **Ela não gostou de *O Céu é de Verdade***. Não gosta de filmes de alma
+  (céu/quase-morte/além); evitar esse tema mesmo sob o rótulo de fé/inspiração.
 - ✅ **Dublado em pt-BR** ou **nativo em português** (ela não lê legendas). Passeios visuais sem narração também valem.
 
 Cada entrada traz onde assistir, IDs públicos (para ligar ao b6 depois) e o
@@ -64,33 +66,28 @@ precisarão de uma consulta via ADB no Fire TV antes de virar botão.
 
 ## ▶️ No b6 agora
 
-### 1. O Céu é de Verdade (2014) · *fé / inspiração*
-- **Onde:** Netflix (`netflix_id: 70295734`) · Prime Video BR — **dublado pt-BR**
-- Baseado em fatos: um menino de 4 anos vive uma experiência de quase-morte numa cirurgia e diz ter visitado o céu; ao voltar, transforma a fé da família. Caloroso e consolador (a criança sobrevive).
-- **Por quê:** mensagem reconfortante sobre o além, no espírito de *The Chosen*. *(Obs.: há o susto da cirurgia, mas tratado com leveza.)*
-
-### 2. Maria, Mãe do Filho de Deus (2003) · *fé / família*
+### 1. Maria, Mãe do Filho de Deus (2003) · *fé / família*
 - **Onde:** Netflix (`netflix_id: 70196240`) — **português nativo**
 - Um padre conta a história da Virgem Maria para uma menina enquanto ela espera
   a mãe voltar. Brasileiro, classificação livre, com Padre Marcelo Rossi.
 - **Por quê:** fé familiar e tom mais caseiro; melhor aposta religiosa que
   produções bíblicas longas e violentas.
 
-### 3. Tetra: Acreditar de Novo (2026) · *Brasil / presente / inspiração*
+### 2. Tetra: Acreditar de Novo (2026) · *Brasil / presente / inspiração*
 - **Onde:** Netflix (`netflix_id: 82032990`) — **português nativo**
 - Documentário brasileiro sobre a Seleção de 1994, com entrevistas e imagens
   dos próprios jogadores.
 - **Por quê:** atual, brasileiro, nostálgico sem ser triste; bom para puxar
   conversa com memórias boas.
 
-### 4. The Middle · *família / sitcom*
+### 3. The Middle · *família / sitcom*
 - **Onde:** Netflix (`netflix_id: 70143859`) — **áudio em português**
 - Frankie Heck e o marido Mike tentam equilibrar trabalho e casa enquanto criam
   três filhos no interior dos EUA.
 - **Por quê:** sitcom familiar, honesta e agradável; deve ser um teste mais
   seguro que *Grace and Frankie* por não abrir com divórcio/sexualidade.
 
-### 5. As Aventuras Escolhidas · *The Chosen / animação cristã*
+### 4. As Aventuras Escolhidas · *The Chosen / animação cristã*
 - **Onde:** Netflix (`netflix_id: 82666465`) · Prime Video (`prime_video:
   0FJQKV6ZATP26APZZAXTFNH9IY`) — **áudio em português**
 - Abby e Josué conhecem Jesus na antiga Galileia e aprendem sobre fé e amizade
@@ -99,27 +96,27 @@ precisarão de uma consulta via ADB no Fire TV antes de virar botão.
   formato curto. **Atenção:** é animação infantil; manter porque ela gosta de
   *The Chosen*, mas observar se o desenho a prende.
 
-### 6. Davi: Nasce um Rei · *animação bíblica / musical*
+### 5. Davi: Nasce um Rei · *animação bíblica / musical*
 - **Onde:** Netflix (`netflix_id: 82836255`) — **áudio em português**
 - Jovem pastor destinado a se tornar rei enfrenta inimigos poderosos guiado
   pela fé.
 - **Por quê:** fé, animação e música, com história bíblica conhecida. **Atenção:**
   tem conflito/Golias; observar se fica empolgante sem pesar.
 
-### 7. Testamento: A História de Moisés · *documentário bíblico*
+### 6. Testamento: A História de Moisés · *documentário bíblico*
 - **Onde:** Netflix (`netflix_id: 81341795`) — **áudio em português**
 - Série documental em 3 episódios sobre Moisés como príncipe, profeta e líder.
 - **Por quê:** tema bíblico conhecido e formato curto. **Atenção:** inclui
   escravidão, confronto com faraó e as pragas; pode ser mais pesado que
   *As Aventuras Escolhidas* e *Davi: Nasce um Rei*.
 
-### 8. Noé · *épico bíblico*
+### 7. Noé · *épico bíblico*
 - **Onde:** Netflix (`netflix_id: 70295061`) — **áudio em português**
 - Noé recebe uma visão divina de uma inundação apocalíptica e constrói a arca.
 - **Por quê:** história bíblica conhecida. **Atenção:** é drama épico 14 anos,
   com fim do mundo/conflito; testar em dias bons, não como conforto leve.
 
-### 9. Um Pai em Apuros · *comédia brasileira / família*
+### 8. Um Pai em Apuros · *comédia brasileira / família*
 - **Onde:** Netflix (`netflix_id: 82887570`) — **português nativo**
 - Mãe cansada tira férias e deixa o marido cuidando das crianças, virando caos
   doméstico de comédia.
@@ -217,7 +214,7 @@ Para você entender a curadoria e não estranhar ausências óbvias:
 
 - O b6 deste worktree já é `method = "playlist"`: o controller escolhe um item
   por dia e despacha para o método real (`netflix`, `youtube`, etc.).
-- Itens atuais do b6 em `config.toml`: `70295734`, `70196240`, `82032990`,
+- Itens atuais do b6 em `config.toml`: `70196240`, `82032990`,
   `70143859`, `82666465`, `82836255`, `81341795`, `70295061`, `82887570`.
 - Prime Video usa IDs de detalhe públicos quando disponíveis; ainda vale
   testar na TV porque alguns títulos podem exigir assinatura/canal add-on.
